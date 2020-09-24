@@ -4,9 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using WDBXEditor2.Controller;
 using WDBXEditor2.Misc;
 
@@ -181,17 +184,64 @@ namespace WDBXEditor2
                 if (e.Column != null)
                 {
                     var rowIdx = e.Row.GetIndex();
+
+                    //should be -1 if not allow to edit
                     if (rowIdx > openedDB2Storage.Keys.Count)
                         throw new Exception();
 
                     var newVal = e.EditingElement as TextBox;
 
-                    var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
-                    dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                    //var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
+                    //dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+
+                    //
+                    if (rowIdx == openedDB2Storage.Keys.Count)
+                    {
+                        //new row
+                        var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx - 1);
+                        openedDB2Storage.Add(openedDB2Storage.Keys.Last() + 1, dbcRow);
+                        //modify last row
+                        dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
+                        dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                    }
+                    else
+                    {
+                        var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
+                        dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                    }
+
 
                     Console.WriteLine($"RowIdx: {rowIdx} Text: {newVal.Text}");
                 }
             }
+        }
+
+        private void Export_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentOpenDB2))
+                return;
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                FileName = currentOpenDB2,
+                Filter = "csv Files (*.csv)|*.csv",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                DB2DataGrid.SelectAllCells();
+
+                DB2DataGrid.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
+                System.Windows.Input.ApplicationCommands.Copy.Execute(null, DB2DataGrid);
+
+                DB2DataGrid.UnselectAllCells();
+
+                string result = (string)System.Windows.Clipboard.GetData(System.Windows.DataFormats.CommaSeparatedValue);
+
+                File.AppendAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
+            }
+
         }
     }
 }
