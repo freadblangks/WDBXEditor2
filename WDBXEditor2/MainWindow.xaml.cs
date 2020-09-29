@@ -87,6 +87,12 @@ namespace WDBXEditor2
         /// </summary>
         private void PopulateColumns(IDBCDStorage storage, ref DataTable data)
         {
+            if (storage.Values.Count == 0)
+            {
+                data.Columns.Add("No data");
+                return;
+            }
+
             var firstItem = storage.Values.First();
 
             foreach (string columnName in firstItem.GetDynamicMemberNames())
