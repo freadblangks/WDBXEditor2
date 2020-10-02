@@ -146,13 +146,13 @@ namespace DBFileReaderLib.Writers
                         var array = (string[])info.Getter(rows[record.Key]);
                         for (int i = 0; i < array.Length; i++)
                         {
-                            fieldOffset = m_writer.StringTable[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
+                            fieldOffset = m_writer.StringTableStingAsKeyPosAsValue[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
                             record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset + (i * bitSize));
                         }
                     }
                     else
                     {
-                        fieldOffset = m_writer.StringTable[(string)info.Getter(rows[record.Key])] + recordOffset - (columnMeta.RecordOffset / 8);
+                        fieldOffset = m_writer.StringTableStingAsKeyPosAsValue[(string)info.Getter(rows[record.Key])] + recordOffset - (columnMeta.RecordOffset / 8);
                         record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset);
                     }
                 }
@@ -373,7 +373,7 @@ namespace DBFileReaderLib.Writers
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in StringTable)
+                    foreach (var str in StringTableStingAsKeyPosAsValue)
                         writer.WriteCString(str.Key);
                 }
 

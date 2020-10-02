@@ -32,6 +32,41 @@ namespace DBFileReaderLib.Writers
             Records = new Dictionary<int, BitWriter>();
         }
 
+        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>>
+        {
+            [typeof(ulong)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<ulong>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(long)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(float)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(int)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(uint)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<uint>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(short)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<short>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(ushort)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<ushort>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(sbyte)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<sbyte>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(byte)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<byte>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
+            [typeof(string)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) =>
+            {
+                if (writer.Flags.HasFlagExt(DB2Flags.Sparse))
+                    data.WriteCString((string)value);
+                else
+                    WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, writer.InternString((string)value));
+            }
+        };
+
+        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>>
+        {
+            [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(long[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<long>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(float[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<float>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(int[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(uint[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<uint>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(short[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<short>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(ushort[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ushort>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(byte[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<byte>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(sbyte[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<sbyte>(data, fieldMeta, columnMeta, palletData, commonData, array),
+            [typeof(string[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, (array as string[]).Select(x => writer.InternString(x)).ToArray()),
+        };
+        
         public void Serialize(IDictionary<int, T> rows)
         {
             foreach (var row in rows)
@@ -145,13 +180,13 @@ namespace DBFileReaderLib.Writers
                         var array = (string[])info.Getter(rows[record.Key]);
                         for (int i = 0; i < array.Length; i++)
                         {
-                            fieldOffset = m_writer.StringTable[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
+                            fieldOffset = m_writer.StringTableStingAsKeyPosAsValue[array[i]] + recordOffset - (columnMeta.RecordOffset / 8 * i);
                             record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset + (i * bitSize));
                         }
                     }
                     else
                     {
-                        fieldOffset = m_writer.StringTable[(string)info.Getter(rows[record.Key])] + recordOffset - (columnMeta.RecordOffset / 8);
+                        fieldOffset = m_writer.StringTableStingAsKeyPosAsValue[(string)info.Getter(rows[record.Key])] + recordOffset - (columnMeta.RecordOffset / 8);
                         record.Value.Write(fieldOffset, bitSize, columnMeta.RecordOffset);
                     }
                 }
@@ -161,39 +196,7 @@ namespace DBFileReaderLib.Writers
         }
 
 
-        private static Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>> simpleWriters = new Dictionary<Type, Action<int, BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, object>>
-        {
-            [typeof(long)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<long>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(float)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<float>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(int)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(uint)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<uint>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(short)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<short>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(ushort)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<ushort>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(sbyte)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<sbyte>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(byte)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) => WriteFieldValue<byte>(id, data, fieldMeta, columnMeta, palletData, commonData, value),
-            [typeof(string)] = (id, data, writer, fieldMeta, columnMeta, palletData, commonData, value) =>
-            {
-                if (writer.Flags.HasFlagExt(DB2Flags.Sparse))
-                    data.WriteCString((string)value);
-                else
-                    WriteFieldValue<int>(id, data, fieldMeta, columnMeta, palletData, commonData, writer.InternString((string)value));
-            }
-        };
 
-        private static Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>> arrayWriters = new Dictionary<Type, Action<BitWriter, BaseWriter<T>, FieldMetaData, ColumnMetaData, List<Value32[]>, Dictionary<int, Value32>, Array>>
-        {
-            [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(long[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<long>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(float[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<float>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(int[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(uint[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<uint>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(ulong[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ulong>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(ushort[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<ushort>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(short[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<short>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(byte[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<byte>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(sbyte[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<sbyte>(data, fieldMeta, columnMeta, palletData, commonData, array),
-            [typeof(string[])] = (data, writer, fieldMeta, columnMeta, palletData, commonData, array) => WriteFieldValueArray<int>(data, fieldMeta, columnMeta, palletData, commonData, (array as string[]).Select(x => writer.InternString(x)).ToArray()),
-        };
 
         private static void WriteFieldValue<TType>(int Id, BitWriter r, FieldMetaData fieldMeta, ColumnMetaData columnMeta, List<Value32[]> palletData, Dictionary<int, Value32> commonData, object value) where TType : unmanaged
         {
@@ -281,7 +284,7 @@ namespace DBFileReaderLib.Writers
         public WDC3Writer(WDC3Reader reader, IDictionary<int, T> storage, Stream stream) : base(reader)
         {
             // always 2 empties
-            StringTableSize++;
+            //StringTableSize++; //no need since we calcuated the value in BaseWriter::InternString
 
             WDC3RowSerializer<T> serializer = new WDC3RowSerializer<T>(this);
             serializer.Serialize(storage);
@@ -316,7 +319,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(ColumnMeta.Length * 24);           // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
-                writer.Write(1);                                // sections count
+                writer.Write(reader.SectionsCount);                                // sections count
 
                 if (storage.Count == 0)
                     return;
@@ -383,7 +386,7 @@ namespace DBFileReaderLib.Writers
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in StringTable)
+                    foreach (var str in StringTableStingAsKeyPosAsValue)
                         writer.WriteCString(str.Key);
                 }
 

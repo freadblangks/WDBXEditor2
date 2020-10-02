@@ -20,7 +20,7 @@ namespace DBFileReaderLib.Writers
         public ColumnMetaData[] ColumnMeta { get; protected set; }
         public List<Value32[]>[] PalletData { get; protected set; }
         public Dictionary<int, Value32>[] CommonData { get; protected set; }
-        public Dictionary<string, int> StringTable { get; protected set; }
+        public Dictionary<string, int> StringTableStingAsKeyPosAsValue { get; protected set; }
         public SortedDictionary<int, int> CopyData { get; protected set; }
         public List<int> ReferenceData { get; protected set; }
         #endregion
@@ -34,7 +34,7 @@ namespace DBFileReaderLib.Writers
             IdFieldIndex = reader.IdFieldIndex;
             Flags = reader.Flags;
 
-            StringTable = new Dictionary<string, int>();
+            StringTableStingAsKeyPosAsValue = new Dictionary<string, int>();
             CopyData = new SortedDictionary<int, int>();
             Meta = reader.Meta;
             ColumnMeta = reader.ColumnMeta;
@@ -61,8 +61,10 @@ namespace DBFileReaderLib.Writers
 
         public int InternString(string value)
         {
-            if (StringTable.TryGetValue(value, out int index))
+            if (StringTableStingAsKeyPosAsValue.TryGetValue(value, out int index))
                 return index;
+
+            StringTableStingAsKeyPosAsValue.Add(value, StringTableSize);
 
             int strlen = System.Text.Encoding.UTF8.GetBytes(value).Length;
 
@@ -70,8 +72,6 @@ namespace DBFileReaderLib.Writers
             {
                 strlen = 1;
             }
-
-            StringTable.Add(value, strlen);
 
             int offset = StringTableSize;
             StringTableSize += strlen + 1;

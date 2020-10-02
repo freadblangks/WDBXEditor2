@@ -14,6 +14,7 @@ namespace DBFileReaderLib.Readers
         public int StringTableSize { get; protected set; }
         public uint TableHash { get; protected set; }
         public uint LayoutHash { get; protected set; }
+        public int SectionsCount { get; protected set; }
         public int MinIndex { get; protected set; }
         public int MaxIndex { get; protected set; }
         public int IdFieldIndex { get; protected set; }

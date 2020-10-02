@@ -194,7 +194,7 @@ namespace DBFileReaderLib.Writers
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in StringTable)
+                    foreach (var str in StringTableStingAsKeyPosAsValue)
                         writer.WriteCString(str.Key);
                 }
 

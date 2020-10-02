@@ -261,12 +261,12 @@ namespace DBFileReaderLib.Readers
                 int columnMetaDataSize  = reader.ReadInt32();   // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
                 int commonDataSize      = reader.ReadInt32();
                 int palletDataSize      = reader.ReadInt32();   // in bytes, sizeof(DBC2PalletValue) == 4
-                int sectionsCount       = reader.ReadInt32();
+                SectionsCount           = reader.ReadInt32();
 
-                if (sectionsCount == 0 || RecordsCount == 0)
+                if (SectionsCount == 0 || RecordsCount == 0)
                     return;
 
-                var sections = reader.ReadArray<SectionHeaderWDC3>(sectionsCount).ToList();
+                var sections = reader.ReadArray<SectionHeaderWDC3>(SectionsCount).ToList();
                 m_sections = sections.OfType<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data
