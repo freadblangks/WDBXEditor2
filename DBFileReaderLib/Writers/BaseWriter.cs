@@ -64,10 +64,17 @@ namespace DBFileReaderLib.Writers
             if (StringTable.TryGetValue(value, out int index))
                 return index;
 
-            StringTable.Add(value, StringTableSize);
+            int strlen = System.Text.Encoding.UTF8.GetBytes(value).Length;
+
+            if (value == "")//there was a 0x00 on each string table 0x00 0x00 string1 0x00 string2 0x00
+            {
+                strlen = 1;
+            }
+
+            StringTable.Add(value, strlen);
 
             int offset = StringTableSize;
-            StringTableSize += value.Length + 1;
+            StringTableSize += strlen + 1;
             return offset;
         }
 
