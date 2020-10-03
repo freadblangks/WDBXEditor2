@@ -25,8 +25,8 @@ namespace DBFileReaderLib.Readers
 
         #region Data
 
-        public FieldMetaData[] Meta;
-        public int[] IndexData;
+        public FieldMetaData[] field_structure_data;
+        public int[] id_list_data;
         public ColumnMetaData[] ColumnMeta;
         public Value32[][] PalletData;
         public Dictionary<int, Value32>[] CommonData;
@@ -35,7 +35,7 @@ namespace DBFileReaderLib.Readers
         protected byte[] RecordsData;
         protected Dictionary<int, int> CopyData { get; set; }
         protected Dictionary<int, IDBRow> _Records { get; set; } = new Dictionary<int, IDBRow>();
-        protected List<SparseEntry> SparseEntries { get; set; }
+        protected List<offset_map_entry> offset_map_Entries { get; set; }
         public int[] ForeignKeyData { get; set; }
 
         #endregion
@@ -69,7 +69,7 @@ namespace DBFileReaderLib.Readers
         }
         public void Clear()
         {
-            IndexData = null;
+            id_list_data = null;
             PalletData = null;
             ColumnMeta = null;
             RecordsData = null;
@@ -78,7 +78,7 @@ namespace DBFileReaderLib.Readers
 
             _Records?.Clear();
             StringTable?.Clear();
-            SparseEntries?.Clear();
+            offset_map_Entries?.Clear();
             CopyData?.Clear();
         }
 

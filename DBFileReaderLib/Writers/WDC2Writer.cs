@@ -24,7 +24,7 @@ namespace DBFileReaderLib.Writers
         public WDC2RowSerializer(BaseWriter<T> writer)
         {
             m_writer = writer;
-            m_fieldMeta = m_writer.Meta;
+            m_fieldMeta = m_writer.field_structure_data;
             m_columnMeta = m_writer.ColumnMeta;
             m_palletData = m_writer.PalletData;
             m_commonData = m_writer.CommonData;
@@ -57,7 +57,7 @@ namespace DBFileReaderLib.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // reference data field
-                if (fieldIndex >= m_writer.Meta.Length)
+                if (fieldIndex >= m_writer.field_structure_data.Length)
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
                     continue;
@@ -323,7 +323,7 @@ namespace DBFileReaderLib.Writers
                     return;
 
                 // section header
-                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeader>() + palletDataSize + commonDataSize;
+                int fileOffset = HeaderSize + (field_structure_data.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeader>() + palletDataSize + commonDataSize;
 
                 writer.Write(0UL); // TactKeyLookup
                 writer.Write(fileOffset); // FileOffset
@@ -335,7 +335,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(referenceDataSize);
 
                 // field meta
-                writer.WriteArray(Meta);
+                writer.WriteArray(field_structure_data);
 
                 // column meta data
                 writer.WriteArray(ColumnMeta);

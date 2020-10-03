@@ -16,7 +16,7 @@ namespace DBFileReaderLib.Writers
         public DB2Flags Flags { get; }
 
         #region Data
-        public FieldMetaData[] Meta { get; protected set; }
+        public FieldMetaData[] field_structure_data { get; protected set; }
         public ColumnMetaData[] ColumnMeta { get; protected set; }
         public List<Value32[]>[] PalletData { get; protected set; }
         public Dictionary<int, Value32>[] CommonData { get; protected set; }
@@ -36,7 +36,7 @@ namespace DBFileReaderLib.Writers
 
             StringTableStingAsKeyPosAsValue = new Dictionary<string, int>();
             CopyData = new SortedDictionary<int, int>();
-            Meta = reader.Meta;
+            field_structure_data = reader.field_structure_data;
             ColumnMeta = reader.ColumnMeta;
 
             if (ColumnMeta != null)
