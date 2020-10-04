@@ -37,10 +37,20 @@ namespace DBFileReaderLib.Readers
         public Dictionary<long, string> StringTable;
 
         protected byte[] RecordsData;
+
         protected Dictionary<int, int> CopyData { get; set; }
         protected Dictionary<int, IDBRow> _Records { get; set; } = new Dictionary<int, IDBRow>();
         protected List<offset_map_entry> offset_map_Entries { get; set; }
         public int[] ForeignKeyData { get; set; }
+
+        //LIST for wdc3 MULTIPLE section
+        protected List<byte[]> RecordsDatasWDC3 { get; set; }
+        public List<Dictionary<long, string>> StringTablesWDC3 { get; set; }
+        public List<int[]> id_list_datasWDC3 { get; set; }
+        public List<Dictionary<int, int>> CopyDatasWDC3 { get; set; }
+        public List<List<offset_map_entry>> offset_map_EntriesWDC3 { get; set; }
+
+        public List<ReferenceData> ReferenceDatasWDC3 { get; set; }
 
         #endregion
 
@@ -84,6 +94,15 @@ namespace DBFileReaderLib.Readers
             StringTable?.Clear();
             offset_map_Entries?.Clear();
             CopyData?.Clear();
+
+
+            //LIST for wdc3 MULTIPLE section
+            RecordsDatasWDC3 = null;
+            StringTablesWDC3 = null;
+            id_list_datasWDC3 = null;
+            CopyDatasWDC3 = null;
+            offset_map_EntriesWDC3 = null;
+            ReferenceDatasWDC3 = null;
         }
 
         #endregion
