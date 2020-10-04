@@ -37,8 +37,7 @@ namespace DBFileReaderLib
         public int commonDataSize => _reader.commonDataSize;
         public int palletDataSize => _reader.palletDataSize;
         public int SectionsCount  => _reader.SectionsCount;
-
-        //public List<SectionHeaderWDC3> SectionInfo => _reader.SectionHeaders;
+        public List<SectionHeaderWDC3> SectionHeaders => _reader.SectionHeaders;
         //
         public int IdFieldIndex => _reader.IdFieldIndex;
         public DB2Flags Flags => _reader.Flags;

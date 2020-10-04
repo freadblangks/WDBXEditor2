@@ -87,25 +87,43 @@ namespace WDBXEditor2
                 DBFileReaderLib.DBParser dp = storage.parser;
                 datainfo.Columns.Add("Field");
                 datainfo.Columns.Add("Data");
+                datainfo.Columns.Add("Comments");
 
-                 datainfo.Rows.Add("RecordsCount", dp.RecordsCount);
-                datainfo.Rows.Add("FieldsCount", dp.FieldsCount);
-                datainfo.Rows.Add("RecordSize", dp.RecordSize);
-                datainfo.Rows.Add("StringTableSize", dp.StringTableSize);
-                datainfo.Rows.Add("TableHash", dp.TableHash);
-                datainfo.Rows.Add("LayoutHash", dp.LayoutHash);
-                datainfo.Rows.Add("min_id", dp.min_id);
-                datainfo.Rows.Add("max_id", dp.max_id);
-                datainfo.Rows.Add("local", dp.local);
-                datainfo.Rows.Add("Flags", (int)dp.Flags);
-                datainfo.Rows.Add("IdFieldIndex", dp.IdFieldIndex);
-                datainfo.Rows.Add("total_field_count", dp.FieldsCount);
-                datainfo.Rows.Add("bitpacked_data_offset", dp.bitpacked_data_offset);
-                datainfo.Rows.Add("lookupColumnCount", dp.lookupColumnCount);
-                datainfo.Rows.Add("field_info_size", dp.field_info_size);
-                datainfo.Rows.Add("commonDataSize", dp.commonDataSize);
-                datainfo.Rows.Add("palletDataSize", dp.palletDataSize);
-                datainfo.Rows.Add("SectionsCount", dp.SectionsCount);
+                string strComment = "db2 header";
+                datainfo.Rows.Add("RecordsCount", dp.RecordsCount, strComment);
+                datainfo.Rows.Add("FieldsCount", dp.FieldsCount, strComment);
+                datainfo.Rows.Add("RecordSize", dp.RecordSize, strComment);
+                datainfo.Rows.Add("StringTableSize", dp.StringTableSize, strComment);
+                datainfo.Rows.Add("TableHash", dp.TableHash, strComment);
+                datainfo.Rows.Add("LayoutHash", dp.LayoutHash, strComment);
+                datainfo.Rows.Add("min_id", dp.min_id, strComment);
+                datainfo.Rows.Add("max_id", dp.max_id, strComment);
+                datainfo.Rows.Add("local", dp.local, strComment);
+                datainfo.Rows.Add("Flags", (int)dp.Flags, strComment);
+                datainfo.Rows.Add("IdFieldIndex", dp.IdFieldIndex, strComment);
+                datainfo.Rows.Add("total_field_count", dp.FieldsCount, strComment);
+                datainfo.Rows.Add("bitpacked_data_offset", dp.bitpacked_data_offset, strComment);
+                datainfo.Rows.Add("lookupColumnCount", dp.lookupColumnCount, strComment);
+                datainfo.Rows.Add("field_info_size", dp.field_info_size, strComment);
+                datainfo.Rows.Add("commonDataSize", dp.commonDataSize, strComment);
+                datainfo.Rows.Add("palletDataSize", dp.palletDataSize, strComment);
+                datainfo.Rows.Add("SectionsCount", dp.SectionsCount, strComment);
+
+                //section info
+                for (int i = 0; i < dp.SectionHeaders.Count; i++)
+                {
+                    strComment = String.Format("Section{0} header", i);
+                    datainfo.Rows.Add("tact_key_hash", dp.SectionHeaders[i].TactKeyLookup, strComment);
+                    datainfo.Rows.Add("FileOffset", dp.SectionHeaders[i].FileOffset, strComment);
+                    datainfo.Rows.Add("NumRecords", dp.SectionHeaders[i].NumRecords, strComment);
+                    datainfo.Rows.Add("StringTableSize", dp.SectionHeaders[i].StringTableSize, strComment);
+                    datainfo.Rows.Add("OffsetRecordsEndOffset", dp.SectionHeaders[i].OffsetRecordsEndOffset, strComment);
+                    datainfo.Rows.Add("IndexDataSize", dp.SectionHeaders[i].IndexDataSize, strComment);
+                    datainfo.Rows.Add("ParentLookupDataSize", dp.SectionHeaders[i].ParentLookupDataSize, strComment);
+                    datainfo.Rows.Add("OffsetMapIDCount", dp.SectionHeaders[i].OffsetMapIDCount, strComment);
+                    datainfo.Rows.Add("CopyTableCount", dp.SectionHeaders[i].CopyTableCount, strComment);
+                }
+
                 DB2InfoDataGrid.ItemsSource = datainfo.DefaultView;
 
             }
