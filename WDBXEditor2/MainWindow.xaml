@@ -34,7 +34,10 @@
                 <MenuItem x:Name="Exit" Header="Exit" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="_Edit"/>
-            <MenuItem Header="_Export" Click="Export_Click"/>
+            <MenuItem Header="_Export">
+                <MenuItem x:Name="ExportData" Header="ExportData" Click="ExportData_Click"/>
+                <MenuItem x:Name="ExportInfo" Header="ExportInfo" Click="ExportInfo_Click"/>
+            </MenuItem>
             <MenuItem Header="_Tools"/>
         </Menu>
         <Grid Grid.Row="1" Grid.ColumnSpan="2">

@@ -97,15 +97,15 @@ namespace WDBXEditor2
                 datainfo.Rows.Add("min_id", dp.min_id);
                 datainfo.Rows.Add("max_id", dp.max_id);
                 datainfo.Rows.Add("local", dp.local);
+                datainfo.Rows.Add("Flags", (int)dp.Flags);
+                datainfo.Rows.Add("IdFieldIndex", dp.IdFieldIndex);
                 datainfo.Rows.Add("total_field_count", dp.FieldsCount);
                 datainfo.Rows.Add("bitpacked_data_offset", dp.bitpacked_data_offset);
                 datainfo.Rows.Add("lookupColumnCount", dp.lookupColumnCount);
                 datainfo.Rows.Add("field_info_size", dp.field_info_size);
                 datainfo.Rows.Add("commonDataSize", dp.commonDataSize);
                 datainfo.Rows.Add("palletDataSize", dp.palletDataSize);
-                datainfo.Rows.Add("IdFieldIndex", dp.IdFieldIndex);
-                datainfo.Rows.Add("Flags", dp.Flags.ToString());
-
+                datainfo.Rows.Add("SectionsCount", dp.SectionsCount);
                 DB2InfoDataGrid.ItemsSource = datainfo.DefaultView;
 
             }
@@ -254,7 +254,7 @@ namespace WDBXEditor2
             }
         }
 
-        private void Export_Click(object sender, RoutedEventArgs e)
+        private void ExportData_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(currentOpenDB2))
                 return;
@@ -274,6 +274,33 @@ namespace WDBXEditor2
                 System.Windows.Input.ApplicationCommands.Copy.Execute(null, DB2DataGrid);
 
                 DB2DataGrid.UnselectAllCells();
+
+                string result = (string)System.Windows.Clipboard.GetData(System.Windows.DataFormats.CommaSeparatedValue);
+
+                File.AppendAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
+            }
+
+        }
+        private void ExportInfo_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentOpenDB2))
+                return;
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                FileName = currentOpenDB2 + ".info" ,
+                Filter = "csv Files (*.csv)|*.csv",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                DB2InfoDataGrid.SelectAllCells();
+
+                DB2InfoDataGrid.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
+                System.Windows.Input.ApplicationCommands.Copy.Execute(null, DB2InfoDataGrid);
+
+                DB2InfoDataGrid.UnselectAllCells();
 
                 string result = (string)System.Windows.Clipboard.GetData(System.Windows.DataFormats.CommaSeparatedValue);
 

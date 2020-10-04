@@ -36,6 +36,7 @@ namespace DBFileReaderLib
         public int field_info_size => _reader.field_info_size;
         public int commonDataSize => _reader.commonDataSize;
         public int palletDataSize => _reader.palletDataSize;
+        public int SectionsCount  => _reader.SectionsCount;
 
         //public List<SectionHeaderWDC3> SectionInfo => _reader.SectionHeaders;
         //
