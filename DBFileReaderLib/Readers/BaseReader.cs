@@ -22,7 +22,11 @@ namespace DBFileReaderLib.Readers
         public int Locale { get; protected set; }
         public uint Build { get; protected set; }
         public int PackedDataOffset { get; protected set; }
-
+        public int lookupColumnCount { get; protected set; }
+        public int field_info_size { get; protected set; }
+        public int commonDataSize { get; protected set; }
+        public int palletDataSize { get; protected set; }
+        public List<SectionHeaderWDC3> SectionHeaders { get; protected set; }
         #region Data
 
         public FieldMetaData[] field_structure_data;

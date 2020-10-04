@@ -257,17 +257,17 @@ namespace DBFileReaderLib.Readers
                 IdFieldIndex            = reader.ReadUInt16();
                 int totalFieldsCount    = reader.ReadInt32();
                 PackedDataOffset        = reader.ReadInt32();   // Offset within the field where packed data starts
-                int lookupColumnCount   = reader.ReadInt32();   // count of lookup columns
-                int field_info_size     = reader.ReadInt32();   // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
-                int commonDataSize      = reader.ReadInt32();
-                int palletDataSize      = reader.ReadInt32();   // in bytes, sizeof(DBC2PalletValue) == 4
+                lookupColumnCount       = reader.ReadInt32();   // count of lookup columns
+                field_info_size     = reader.ReadInt32();   // 24 * NumFields bytes, describes column bit packing, {ushort recordOffset, ushort size, uint additionalDataSize, uint compressionType, uint packedDataOffset or commonvalue, uint cellSize, uint cardinality}[NumFields], sizeof(DBC2CommonValue) == 8
+                commonDataSize      = reader.ReadInt32();
+                palletDataSize      = reader.ReadInt32();   // in bytes, sizeof(DBC2PalletValue) == 4
                 SectionsCount           = reader.ReadInt32();
 
                 if (SectionsCount == 0 || RecordsCount == 0)
                     return;
 
                 //section headers
-                var SectionHeaders = reader.ReadArray<SectionHeaderWDC3>(SectionsCount).ToList();
+                SectionHeaders = reader.ReadArray<SectionHeaderWDC3>(SectionsCount).ToList();
                 m_sections = SectionHeaders.OfType<IEncryptableDatabaseSection>().ToList();
 
                 // field meta data

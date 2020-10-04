@@ -21,6 +21,24 @@ namespace DBFileReaderLib
         public int StringTableSize => _reader.StringTableSize;
         public uint TableHash => _reader.TableHash;
         public uint LayoutHash => _reader.LayoutHash;
+
+        //for info only
+        public int min_id => _reader.MinIndex;
+
+        public int max_id => _reader.MaxIndex;
+
+        public int local => _reader.Locale;
+
+        public int total_field_count => _reader.FieldsCount;
+
+        public int bitpacked_data_offset => _reader.PackedDataOffset;
+        public int lookupColumnCount => _reader.lookupColumnCount;
+        public int field_info_size => _reader.field_info_size;
+        public int commonDataSize => _reader.commonDataSize;
+        public int palletDataSize => _reader.palletDataSize;
+
+        //public List<SectionHeaderWDC3> SectionInfo => _reader.SectionHeaders;
+        //
         public int IdFieldIndex => _reader.IdFieldIndex;
         public DB2Flags Flags => _reader.Flags;
         #endregion

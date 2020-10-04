@@ -58,6 +58,10 @@ namespace WDBXEditor2
             DB2DataGrid.Columns.Clear();
             DB2DataGrid.ItemsSource = new List<string>();
 
+            DB2InfoDataGrid.Columns.Clear();
+            DB2InfoDataGrid.ItemsSource = new List<string>();
+
+
             currentOpenDB2 = (string)OpenDBItems.SelectedItem;
             if (currentOpenDB2 == null)
                 return;
@@ -77,6 +81,33 @@ namespace WDBXEditor2
 
                 openedDB2Storage = storage;
                 DB2DataGrid.ItemsSource = data.DefaultView;
+
+                //info data
+                var datainfo = new DataTable();
+                DBFileReaderLib.DBParser dp = storage.parser;
+                datainfo.Columns.Add("Field");
+                datainfo.Columns.Add("Data");
+
+                 datainfo.Rows.Add("RecordsCount", dp.RecordsCount);
+                datainfo.Rows.Add("FieldsCount", dp.FieldsCount);
+                datainfo.Rows.Add("RecordSize", dp.RecordSize);
+                datainfo.Rows.Add("StringTableSize", dp.StringTableSize);
+                datainfo.Rows.Add("TableHash", dp.TableHash);
+                datainfo.Rows.Add("LayoutHash", dp.LayoutHash);
+                datainfo.Rows.Add("min_id", dp.min_id);
+                datainfo.Rows.Add("max_id", dp.max_id);
+                datainfo.Rows.Add("local", dp.local);
+                datainfo.Rows.Add("total_field_count", dp.FieldsCount);
+                datainfo.Rows.Add("bitpacked_data_offset", dp.bitpacked_data_offset);
+                datainfo.Rows.Add("lookupColumnCount", dp.lookupColumnCount);
+                datainfo.Rows.Add("field_info_size", dp.field_info_size);
+                datainfo.Rows.Add("commonDataSize", dp.commonDataSize);
+                datainfo.Rows.Add("palletDataSize", dp.palletDataSize);
+                datainfo.Rows.Add("IdFieldIndex", dp.IdFieldIndex);
+                datainfo.Rows.Add("Flags", dp.Flags.ToString());
+
+                DB2InfoDataGrid.ItemsSource = datainfo.DefaultView;
+
             }
 
             Title = $"WDBXEditor2  -  {Constants.Version}  -  {currentOpenDB2}";
@@ -87,6 +118,7 @@ namespace WDBXEditor2
         /// </summary>
         private void PopulateColumns(IDBCDStorage storage, ref DataTable data)
         {
+ 
             if (storage.Values.Count == 0)
             {
                 data.Columns.Add("No data");
