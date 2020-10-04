@@ -47,8 +47,8 @@ namespace WDBXEditor2
             {
                 var files = openFileDialog.FileNames;
 
-                foreach (string loadedDB in dbLoader.LoadFiles(files))
-                    OpenDBItems.Items.Add(loadedDB);
+                foreach (string loadedDBpath in dbLoader.LoadFiles(files))
+                    OpenDBItems.Items.Add(loadedDBpath);
             }
         }
 
