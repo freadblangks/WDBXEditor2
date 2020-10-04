@@ -5,3 +5,6 @@ DB2 definitions come from [WoWDBDefs](https://github.com/wowdev/WoWDBDefs/tree/m
 
 ### Requirements
 * Visual Studio 2019 (.NET Core 3.1)
+
+### WIP
+- WIP, WDC3Writer::GetCopyRows() DO NOT COUNT COPY ROWS. THERE'RE ROWS HAS MULTIPLE ID(second key/reference key)
