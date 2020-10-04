@@ -295,7 +295,7 @@ namespace WDBXEditor2
 
                 string result = (string)System.Windows.Clipboard.GetData(System.Windows.DataFormats.CommaSeparatedValue);
 
-                File.AppendAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
+                File.WriteAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
             }
 
         }
@@ -322,7 +322,7 @@ namespace WDBXEditor2
 
                 string result = (string)System.Windows.Clipboard.GetData(System.Windows.DataFormats.CommaSeparatedValue);
 
-                File.AppendAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
+                File.WriteAllText(saveFileDialog.FileName, result, UnicodeEncoding.UTF8);
             }
 
         }
