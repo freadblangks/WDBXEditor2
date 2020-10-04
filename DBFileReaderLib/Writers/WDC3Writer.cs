@@ -298,7 +298,7 @@ namespace DBFileReaderLib.Writers
             {
                 foreach (var re in rd.Entries)
                 {
-                    ReferenceData.Add(re.Key);
+                    ReferenceData.Add(re.Value);
                 }   
             }
 
