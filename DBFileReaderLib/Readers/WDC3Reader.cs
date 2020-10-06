@@ -325,24 +325,11 @@ namespace DBFileReaderLib.Readers
                         }
 
                         StringTableSizeCounter += sectionheader.StringTableSize;
-
-                        //add to list 
-                        if (RecordsDatasWDC3 == null)
-                            RecordsDatasWDC3 = new List<byte[]>() ;
-                        if (StringTablesWDC3 == null)
-                            StringTablesWDC3 = new List<Dictionary<long, string>>() ;
-                        RecordsDatasWDC3.Add(RecordsData);
-                        StringTablesWDC3.Add(StringTable);
                     }
                     else //'Has offset map'
                     {
                         // sparse data with inlined strings
                         RecordsData = reader.ReadBytes(sectionheader.OffsetRecordsEndOffset - sectionheader.FileOffset);
-
-                        //add to list 
-                        if (RecordsDatasWDC3 == null)
-                            RecordsDatasWDC3 = new List<byte[]>();
-                        RecordsDatasWDC3.Add(RecordsData);
 
                         if (reader.BaseStream.Position != sectionheader.OffsetRecordsEndOffset)
                             throw new Exception("reader.BaseStream.Position != section.OffsetRecordsEndOffset");
@@ -372,11 +359,6 @@ namespace DBFileReaderLib.Readers
                             CopyData[reader.ReadInt32()] = reader.ReadInt32(); //id_of_new_row, id_of_copied_row
                     }
 
-                    //add to list 
-                    if (CopyDatasWDC3 == null)
-                        CopyDatasWDC3 = new List<Dictionary<int, int>>();
-                    CopyDatasWDC3.Add(CopyData);
-
                     // offset map entry data
                     if (sectionheader.OffsetMapIDCount > 0)
                     {
@@ -386,11 +368,6 @@ namespace DBFileReaderLib.Readers
 
                         offset_map_Entries = reader.ReadArray<offset_map_entry>(sectionheader.OffsetMapIDCount).ToList();
                     }
-
-                    //
-                    if (offset_map_EntriesWDC3 == null)
-                        offset_map_EntriesWDC3 = new List<List<offset_map_entry>>();
-                    offset_map_EntriesWDC3.Add(offset_map_Entries);
 
                     // reference/relationship data
                     ReferenceData refData = new ReferenceData();
@@ -404,10 +381,6 @@ namespace DBFileReaderLib.Readers
                         for (int i = 0; i < entries.Length; i++)
                             refData.Entries[entries[i].Index] = entries[i].Id;
                     }
-                    //relationship data
-                    if (ReferenceDatasWDC3 == null)
-                        ReferenceDatasWDC3 = new List<ReferenceData>();
-                    ReferenceDatasWDC3.Add(refData);
 
                     //offset_map_id_list
                     if (sectionheader.OffsetMapIDCount > 0)
@@ -419,11 +392,6 @@ namespace DBFileReaderLib.Readers
 
                         id_list_data = offset_map_id_listdata;
                     }
-
-                    //add to list 
-                    if (id_list_datasWDC3 == null)
-                        id_list_datasWDC3 = new List<int[]>();
-                    id_list_datasWDC3.Add(id_list_data);
 
                     //loop and add field data to create datarow
                     int position = 0;

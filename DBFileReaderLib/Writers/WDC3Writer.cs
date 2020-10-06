@@ -285,24 +285,6 @@ namespace DBFileReaderLib.Writers
 
         public WDC3Writer(WDC3Reader reader, IDictionary<int, T> storage, Stream stream) : base(reader)
         {
-            //LIST for wdc3 MULTIPLE section
-            //RecordsData = null;
-            //StringTable = null;
-            //id_list_data = null;
-            //CopyData = null;
-            //offset_map_Entrie = null;
-            ReferenceData = new List<int>();
-
-
-            foreach (var rd in reader.ReferenceDatasWDC3)
-            {
-                foreach (var re in rd.Entries)
-                {
-                    ReferenceData.Add(re.Key);
-                }   
-            }
-
-
             // always 2 empties
             //StringTableSize++; //no need since we calcuated the value in BaseWriter::InternString
 
@@ -456,8 +438,6 @@ namespace DBFileReaderLib.Writers
 
         private (int CommonDataSize, int PalletDataSize, int RefDataSize) GetDataSizes()
         {
-
-       
             // uint NumRecords, uint minId, uint maxId, {uint id, uint index}[NumRecords]
             int refSize = 0;
             if (ReferenceData.Count > 0)
