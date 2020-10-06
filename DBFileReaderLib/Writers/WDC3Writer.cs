@@ -124,15 +124,13 @@ namespace DBFileReaderLib.Writers
 
         public void GetCopyRows()
         {
-            // WIP, DO NOT COUNT COPY ROWS. THERE'RE ROWS HAS MULTIPLE ID(second key/reference key)
-
-            //var copydata = Records.GroupBy(x => x.Value).Where(x => x.Count() > 1).ToArray();
-            //foreach (var copygroup in copydata)
-            //{
-            //    int key = copygroup.First().Key;
-            //    foreach (var copy in copygroup.Skip(1))
-            //        m_writer.CopyData[copy.Key] = key;
-            //}
+            var copydata = Records.GroupBy(x => x.Value).Where(x => x.Count() > 1).ToArray();
+            foreach (var copygroup in copydata)
+            {
+                int key = copygroup.First().Key;
+                foreach (var copy in copygroup.Skip(1))
+                    m_writer.CopyData[copy.Key] = key;
+            }
         }
 
         public void UpdateStringOffsets(IDictionary<int, T> rows)
@@ -321,13 +319,13 @@ namespace DBFileReaderLib.Writers
                 writer.Write(ColumnMeta.Length * 24);           // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
-                writer.Write(1);                                // sections count, current writer merge all sections to 1 section
+                writer.Write(reader.SectionsCount);                                // sections count
 
                 if (storage.Count == 0)
                     return;
 
                 // section header
-                int fileOffset = HeaderSize + (field_structure_data.Length * 4) + Unsafe.SizeOf<SectionHeaderWDC3>() + (ColumnMeta.Length * 24)  + palletDataSize + commonDataSize;
+                int fileOffset = HeaderSize + (field_structure_data.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeaderWDC3>() + palletDataSize + commonDataSize;
 
                 writer.Write(0UL);                              // TactKeyLookup
                 writer.Write(fileOffset);                       // FileOffset
