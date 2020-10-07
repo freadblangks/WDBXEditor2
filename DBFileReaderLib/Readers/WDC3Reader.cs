@@ -302,121 +302,125 @@ namespace DBFileReaderLib.Readers
 
                 //section_data
                 int StringTableSizeCounter = 0, RecordCountCounter = 0;
-                foreach (var sectionheader in SectionHeaders)
+                //foreach (var sectionheader in SectionHeaders)
+                //{
+                reader.BaseStream.Position = SectionHeaders[0].FileOffset;
+
+                if (!Flags.HasFlagExt(DB2Flags.Sparse)) //'no offset map'
                 {
-                    reader.BaseStream.Position = sectionheader.FileOffset;
+                    // records data
+                    RecordsData = reader.ReadBytes(SectionHeaders[0].NumRecords * RecordSize);
 
-                    if (!Flags.HasFlagExt(DB2Flags.Sparse)) //'no offset map'
+                    Array.Resize(ref RecordsData, RecordsData.Length + 8); // pad with extra zeros so we don't crash when reading
+
+                    // string data
+                    if (StringTable == null)
+                        StringTable = new Dictionary<long, string>(SectionHeaders[0].StringTableSize / 0x20);
+
+                    for (int i = 0; i < SectionHeaders[0].StringTableSize;)
                     {
-                        // records data
-                        RecordsData = reader.ReadBytes(sectionheader.NumRecords * RecordSize);
-
-                        Array.Resize(ref RecordsData, RecordsData.Length + 8); // pad with extra zeros so we don't crash when reading
-
-                        // string data
-                        if (StringTable == null)
-                            StringTable = new Dictionary<long, string>(sectionheader.StringTableSize / 0x20);
-
-                        for (int i = 0; i < sectionheader.StringTableSize;)
-                        {
-                            long oldPos = reader.BaseStream.Position;
-                            StringTable[i + StringTableSizeCounter] = reader.ReadCString();
-                            i += (int)(reader.BaseStream.Position - oldPos);
-                        }
-
-                        StringTableSizeCounter += sectionheader.StringTableSize;
-                    }
-                    else //'Has offset map'
-                    {
-                        // sparse data with inlined strings
-                        RecordsData = reader.ReadBytes(sectionheader.OffsetRecordsEndOffset - sectionheader.FileOffset);
-
-                        if (reader.BaseStream.Position != sectionheader.OffsetRecordsEndOffset)
-                            throw new Exception("reader.BaseStream.Position != section.OffsetRecordsEndOffset");
+                        long oldPos = reader.BaseStream.Position;
+                        StringTable[i + StringTableSizeCounter] = reader.ReadCString();
+                        i += (int)(reader.BaseStream.Position - oldPos);
                     }
 
-                    // skip encrypted sections => has tact key + record data is zero filled
-                    if (sectionheader.TactKeyLookup != 0 && Array.TrueForAll(RecordsData, x => x == 0))
-                    {
-                        RecordCountCounter += sectionheader.NumRecords;
-                        continue;
-                    }
-
-                    // id_list_data
-                    id_list_data = reader.ReadArray<int>(sectionheader.IndexDataSize / 4);
-
-                    // fix zero-filled index data
-                    if (id_list_data.Length > 0 && id_list_data.All(x => x == 0))
-                        id_list_data = Enumerable.Range(MinIndex + RecordCountCounter, sectionheader.NumRecords).ToArray();
-
-                    // copy table entry data    , duplicate rows data
-                    if (sectionheader.CopyTableCount > 0)
-                    {
-                        if (CopyData == null)
-                            CopyData = new Dictionary<int, int>();
-
-                        for (int i = 0; i < sectionheader.CopyTableCount; i++)
-                            CopyData[reader.ReadInt32()] = reader.ReadInt32(); //id_of_new_row, id_of_copied_row
-                    }
-
-                    // offset map entry data
-                    if (sectionheader.OffsetMapIDCount > 0)
-                    {
-                        // HACK unittestsparse is malformed and has sparseIndexData first
-                        if (TableHash == 145293629)
-                            reader.BaseStream.Position += 4 * sectionheader.OffsetMapIDCount;
-
-                        offset_map_Entries = reader.ReadArray<offset_map_entry>(sectionheader.OffsetMapIDCount).ToList();
-                    }
-
-                    // reference/relationship data
-                    ReferenceData refData = new ReferenceData();
-                    if (sectionheader.ParentLookupDataSize > 0)
-                    {
-                        refData.NumRecords = reader.ReadInt32();
-                        refData.MinId = reader.ReadInt32();
-                        refData.MaxId = reader.ReadInt32();
-
-                        var entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
-                        for (int i = 0; i < entries.Length; i++)
-                            refData.Entries[entries[i].Index] = entries[i].Id;
-                    }
-
-                    //offset_map_id_list
-                    if (sectionheader.OffsetMapIDCount > 0)
-                    {
-                        int[] offset_map_id_listdata = reader.ReadArray<int>(sectionheader.OffsetMapIDCount);
-
-                        if (sectionheader.IndexDataSize > 0 && id_list_data.Length != offset_map_id_listdata.Length)
-                            throw new Exception("m_indexData.Length != sparseIndexData.Length");
-
-                        id_list_data = offset_map_id_listdata;
-                    }
-
-                    //loop and add field data to create datarow
-                    int position = 0;
-                    for (int i = 0; i < sectionheader.NumRecords; i++)
-                    {
-                        BitReader bitReader = new BitReader(RecordsData) { Position = 0 };
-
-                        if (Flags.HasFlagExt(DB2Flags.Sparse))
-                        {
-                            bitReader.Position = position;
-                            position += offset_map_Entries[i].Size * 8;
-                        }
-                        else
-                        {
-                            bitReader.Offset = i * RecordSize;
-                        }
-
-                        refData.Entries.TryGetValue(i, out int refId);
-
-                        IDBRow rec = new WDC3Row(this, bitReader, sectionheader.IndexDataSize != 0 ? id_list_data[i] : -1, refId, i + RecordCountCounter);
-                        _Records.Add(_Records.Count, rec);
-                    }
-
-                    RecordCountCounter += sectionheader.NumRecords;
+                    StringTableSizeCounter += SectionHeaders[0].StringTableSize;
                 }
+                else //'Has offset map'
+                {
+                    // sparse data with inlined strings
+                    RecordsData = reader.ReadBytes(SectionHeaders[0].OffsetRecordsEndOffset - SectionHeaders[0].FileOffset);
+
+                    if (reader.BaseStream.Position != SectionHeaders[0].OffsetRecordsEndOffset)
+                        throw new Exception("reader.BaseStream.Position != section.OffsetRecordsEndOffset");
+                }
+
+                // skip encrypted sections => has tact key + record data is zero filled
+                if (SectionHeaders[0].TactKeyLookup != 0 && Array.TrueForAll(RecordsData, x => x == 0))
+                {
+                    RecordCountCounter += SectionHeaders[0].NumRecords;
+                    return ;
+                }
+
+                // id_list_data
+                id_list_data = reader.ReadArray<int>(SectionHeaders[0].IndexDataSize / 4);
+
+                // fix zero-filled index data
+                if (id_list_data.Length > 0 && id_list_data.All(x => x == 0))
+                    id_list_data = Enumerable.Range(MinIndex + RecordCountCounter, SectionHeaders[0].NumRecords).ToArray();
+
+                // copy table entry data    , duplicate rows data
+                if (SectionHeaders[0].CopyTableCount > 0)
+                {
+                    if (CopyData == null)
+                        CopyData = new Dictionary<int, int>();
+
+                    for (int i = 0; i < SectionHeaders[0].CopyTableCount; i++)
+                        CopyData[reader.ReadInt32()] = reader.ReadInt32(); //id_of_new_row, id_of_copied_row
+                }
+
+                // offset map entry data
+                if (SectionHeaders[0].OffsetMapIDCount > 0)
+                {
+                    // HACK unittestsparse is malformed and has sparseIndexData first
+                    if (TableHash == 145293629)
+                        reader.BaseStream.Position += 4 * SectionHeaders[0].OffsetMapIDCount;
+
+                    offset_map_Entries = reader.ReadArray<offset_map_entry>(SectionHeaders[0].OffsetMapIDCount).ToList();
+                }
+
+                // reference/relationship data
+                refData = new ReferenceData();
+                if (SectionHeaders[0].ParentLookupDataSize > 0)
+                {
+                    refData.NumRecords = reader.ReadInt32();
+                    refData.MinId = reader.ReadInt32();
+                    refData.MaxId = reader.ReadInt32();
+
+                    var entries = reader.ReadArray<ReferenceEntry>(refData.NumRecords);
+                    for (int i = 0; i < entries.Length; i++)
+                        refData.Entries[entries[i].Index] = entries[i].Id;
+                }
+
+                //offset_map_id_list
+                if (SectionHeaders[0].OffsetMapIDCount > 0)
+                {
+                    int[] offset_map_id_listdata = reader.ReadArray<int>(SectionHeaders[0].OffsetMapIDCount);
+
+                    if (SectionHeaders[0].IndexDataSize > 0 && id_list_data.Length != offset_map_id_listdata.Length)
+                        throw new Exception("m_indexData.Length != sparseIndexData.Length");
+
+                    id_list_data = offset_map_id_listdata;
+                }
+
+                //loop and add field data to create datarow
+                int position = 0;
+                for (int i = 0; i < SectionHeaders[0].NumRecords; i++)
+                {
+                    BitReader bitReader = new BitReader(RecordsData) { Position = 0 };
+
+                    if (Flags.HasFlagExt(DB2Flags.Sparse))
+                    {
+                        bitReader.Position = position;
+                        position += offset_map_Entries[i].Size * 8;
+                    }
+                    else
+                    {
+                        bitReader.Offset = i * RecordSize;
+                    }
+
+                    refData.Entries.TryGetValue(i, out int refId);
+
+                    IDBRow rec = new WDC3Row(this, bitReader, SectionHeaders[0].IndexDataSize != 0 ? id_list_data[i] : -1, refId, i + RecordCountCounter);
+                    _Records.Add(_Records.Count, rec);
+                }
+
+                RecordCountCounter += SectionHeaders[0].NumRecords;
+                //}
+
+                long pos = reader.BaseStream.Position;
+                long len = reader.BaseStream.Length;
+                NoParseRecordsData = reader.ReadBytes((int)(len - pos));
             }
         }
     }

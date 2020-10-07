@@ -321,6 +321,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(palletDataSize);
                 writer.Write(reader.SectionsCount);                                // sections count
 
+
                 if (storage.Count == 0)
                     return;
 
@@ -336,6 +337,20 @@ namespace DBFileReaderLib.Writers
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
                 writer.Write(CopyData.Count);                   // CopyTableCount
+
+                //reset section header
+                for (int i = 1; i < reader.SectionsCount; i++)
+                {
+                    writer.Write(reader.SectionHeaders[i].TactKeyLookup );                              // TactKeyLookup
+                    writer.Write(reader.SectionHeaders[i].FileOffset);                       // FileOffset
+                    writer.Write(reader.SectionHeaders[i].NumRecords);                     // NumRecords
+                    writer.Write(reader.SectionHeaders[i].StringTableSize);
+                    writer.Write(reader.SectionHeaders[i].OffsetRecordsEndOffset);                                // OffsetRecordsEndOffset
+                    writer.Write(reader.SectionHeaders[i].IndexDataSize);                 // IndexDataSize
+                    writer.Write(reader.SectionHeaders[i].ParentLookupDataSize);                // ParentLookupDataSize
+                    writer.Write(reader.SectionHeaders[i].OffsetMapIDCount); // OffsetMapIDCount
+                    writer.Write(reader.SectionHeaders[i].CopyTableCount);                   // CopyTableCount
+                }
 
                 // field meta
                 writer.WriteArray(field_structure_data);
@@ -431,6 +446,9 @@ namespace DBFileReaderLib.Writers
                 // sparse data idss
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                     writer.WriteArray(m_sparseEntries.Keys.ToArray());
+
+                //rest data
+                writer.WriteArray(reader.NoParseRecordsData );
             }
         }
 

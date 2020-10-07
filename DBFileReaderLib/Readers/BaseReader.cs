@@ -27,12 +27,15 @@ namespace DBFileReaderLib.Readers
         public int commonDataSize { get; protected set; }
         public int palletDataSize { get; protected set; }
         public List<SectionHeaderWDC3> SectionHeaders { get; protected set; }
+
+        public byte[] NoParseRecordsData { get; protected set; }
         #region Data
 
         public FieldMetaData[] field_structure_data;
         public int[] id_list_data;
         public ColumnMetaData[] ColumnMeta;
         public Value32[][] PalletData;
+        public ReferenceData refData;
         public Dictionary<int, Value32>[] CommonData;
         public Dictionary<long, string> StringTable;
 
@@ -77,6 +80,7 @@ namespace DBFileReaderLib.Readers
             PalletData = null;
             ColumnMeta = null;
             RecordsData = null;
+            refData = null;
             ForeignKeyData = null;
             CommonData = null;
 
