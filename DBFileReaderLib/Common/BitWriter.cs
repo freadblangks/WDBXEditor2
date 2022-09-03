@@ -136,6 +136,10 @@ namespace DBFileReaderLib.Common
                 EnsureSize(size - TotalBytesWrittenOut);
                 TotalBytesWrittenOut = size;
             }
+            if (TotalBytesWrittenOut > size)
+            {
+                throw new Exception("This should never happen");
+            }
         }
 
         public void ResizeToMultiple(int divisor)

@@ -13,6 +13,7 @@ namespace DBFileReaderLib.Writers
         public int FieldsCount { get; }
         public int RecordSize { get; }
         public int IdFieldIndex { get; }
+        public int LookupColumnCount { get; set; }
         public DB2Flags Flags { get; }
 
         #region Data
@@ -29,6 +30,7 @@ namespace DBFileReaderLib.Writers
         {
             FieldCache = typeof(T).ToFieldCache<T>();
 
+            LookupColumnCount = reader.LookupColumnCount;
             FieldsCount = reader.FieldsCount;
             RecordSize = reader.RecordSize;
             IdFieldIndex = reader.IdFieldIndex;

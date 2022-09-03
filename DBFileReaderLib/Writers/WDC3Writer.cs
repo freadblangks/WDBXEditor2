@@ -28,7 +28,6 @@ namespace DBFileReaderLib.Writers
             m_columnMeta = m_writer.ColumnMeta;
             m_palletData = m_writer.PalletData;
             m_commonData = m_writer.CommonData;
-
             Records = new Dictionary<int, BitWriter>();
         }
 
@@ -56,10 +55,10 @@ namespace DBFileReaderLib.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // reference data field
-                if (fieldIndex >= m_writer.Meta.Length)
+                // Best interpretation I have so far based on ChrCustomizationChoice, where refdata = ChrCustomizationOptionId, which is column 2, the column after index and apparantly only lookup
+                if (m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex <= (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-                    continue;
                 }
 
                 if (info.IsArray)
@@ -292,7 +291,7 @@ namespace DBFileReaderLib.Writers
 
             var (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
 
-            using (var writer = new BinaryWriter(stream))
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8))
             {
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
@@ -329,7 +328,13 @@ namespace DBFileReaderLib.Writers
                 writer.Write(RecordsCount);                     // NumRecords
                 writer.Write(StringTableSize);
                 writer.Write(0);                                // OffsetRecordsEndOffset
-                writer.Write(RecordsCount * 4);                 // IndexDataSize
+                if(Flags.HasFlagExt(DB2Flags.Index))
+                {
+                    writer.Write(RecordsCount * 4);                 // IndexDataSize
+                } else
+                {
+                    writer.Write(0);                                 // IndexDataSize
+                }
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
                 writer.Write(CopyData.Count);                   // CopyTableCount

@@ -21,6 +21,7 @@ namespace DBFileReaderLib.Readers
         public int Locale { get; protected set; }
         public uint Build { get; protected set; }
         public int PackedDataOffset { get; protected set; }
+        public int LookupColumnCount { get; set; }
 
         #region Data
 
