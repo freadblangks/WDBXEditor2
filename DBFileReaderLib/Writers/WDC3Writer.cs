@@ -384,6 +384,8 @@ namespace DBFileReaderLib.Writers
                     }
                 }
 
+
+
                 // string table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -391,6 +393,7 @@ namespace DBFileReaderLib.Writers
                     foreach (var str in StringTable)
                         writer.WriteCString(str.Key);
                 }
+
 
                 // set the OffsetRecordsEndOffset
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
@@ -405,8 +408,9 @@ namespace DBFileReaderLib.Writers
                 if (Flags.HasFlagExt(DB2Flags.Index))
                     writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
+
                 // copy table
-                foreach (var copyRecord in CopyData)
+                foreach (var copyRecord in CopyData.OrderBy(x => x.Value))
                 {
                     writer.Write(copyRecord.Key);
                     writer.Write(copyRecord.Value);
