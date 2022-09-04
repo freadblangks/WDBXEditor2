@@ -427,10 +427,26 @@ namespace DBFileReaderLib.Writers
                     writer.Write(ReferenceData.Min());
                     writer.Write(ReferenceData.Max());
 
+                    int refDataWrote = 0;
                     for (int i = 0; i < ReferenceData.Count; i++)
                     {
-                        writer.Write(ReferenceData[i]);
-                        writer.Write(i);
+                        // Based on observation in SkillRaceClassInfo.db2, copy records do not have their reference copied.
+                        var recordId = serializer.Records.Keys.ElementAt(i);
+                        if (CopyData.Keys.Contains(recordId))
+                        {
+                            var copyRecordId = CopyData[recordId];
+                            var copyIndex = serializer.Records.Keys.ToList().IndexOf(copyRecordId);
+                            writer.Write(ReferenceData[copyIndex]);
+                            writer.Write(copyIndex - CopyData.Values.ToList().IndexOf(copyRecordId));
+                            refDataWrote++;
+                            continue;
+                        }
+                        
+                        if (i < ReferenceData.Count)
+                        {
+                            writer.Write(ReferenceData[i]);
+                            writer.Write(i - refDataWrote);
+                        }
                     }
                 }
 
