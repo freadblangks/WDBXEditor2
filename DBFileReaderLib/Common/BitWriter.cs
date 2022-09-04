@@ -33,7 +33,7 @@ namespace DBFileReaderLib.Common
         {
             byte[] data = Encoding.UTF8.GetBytes(value);
 
-            Resize(data.Length);
+            EnsureSize(data.Length);
             Array.Copy(data, 0, buffer, TotalBytesWrittenOut, data.Length);
             TotalBytesWrittenOut += data.Length + 1;
         }
@@ -135,10 +135,6 @@ namespace DBFileReaderLib.Common
             {
                 EnsureSize(size - TotalBytesWrittenOut);
                 TotalBytesWrittenOut = size;
-            }
-            if (TotalBytesWrittenOut > size)
-            {
-                throw new Exception("This should never happen");
             }
         }
 
