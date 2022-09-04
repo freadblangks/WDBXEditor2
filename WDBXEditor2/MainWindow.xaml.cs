@@ -187,7 +187,14 @@ namespace WDBXEditor2
                     var newVal = e.EditingElement as TextBox;
 
                     var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
-                    dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                    try
+                    {
+                        dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                    }
+                    catch
+                    {
+                        newVal.Text = dbcRow[e.Column.Header.ToString()].ToString();
+                    }
 
                     Console.WriteLine($"RowIdx: {rowIdx} Text: {newVal.Text}");
                 }
