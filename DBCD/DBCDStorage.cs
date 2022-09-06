@@ -1,10 +1,12 @@
+using CsvHelper;
+using CsvHelper.Configuration;
 using DBCD.Helpers;
 
 using DBFileReaderLib;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -80,6 +82,8 @@ namespace DBCD
         DBCDInfo GetDBCDInfo();
         Dictionary<ulong, int> GetEncryptedSections();
         void Save(string filename);
+        void Export(string fileName);
+        void Import(string fileName);
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -98,10 +102,10 @@ namespace DBCD
 
         public DBCDStorage(DBParser parser, Storage<T> storage, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
         {
-            this.info       = info;
-            fieldAccessor   = new FieldAccessor(typeof(T), info.availableColumns);
-            this.parser     = parser;
-            db2Storage      = storage;
+            this.info = info;
+            fieldAccessor = new FieldAccessor(typeof(T), info.availableColumns);
+            this.parser = parser;
+            db2Storage = storage;
 
             foreach (var record in db2Storage)
                 Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
@@ -113,11 +117,69 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-        
+
         public Dictionary<ulong, int> GetEncryptedSections() => parser.GetEncryptedSections();
 
         public DBCDInfo GetDBCDInfo() => info;
 
         public void Save(string filename) => db2Storage?.Save(filename);
+
+        public void Import(string fileName)
+        {
+            var firstItem = Values.FirstOrDefault();
+            if (firstItem == null)
+            {
+                return;
+            }
+            using (var reader = new StreamReader(fileName))
+            using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                MemberTypes = MemberTypes.Fields
+            }))
+            {
+                csv.Read();
+                csv.ReadHeader();
+                var records = csv.GetRecords<T>();
+                db2Storage.Clear();
+                Clear();
+                foreach (var record in records)
+                {
+                    var id = (int)fieldAccessor[record, "ID"];
+                    Add(id, new DBCDRow(id, record, fieldAccessor));
+                    db2Storage.Add(id, record);
+                }
+            }
+        }
+
+        public void Export(string filename)
+        {
+            var firstItem = Values.FirstOrDefault();
+            if (firstItem == null)
+            {
+                return;
+            }
+
+            var columnNames = firstItem.GetDynamicMemberNames()
+                .SelectMany(x =>
+                {
+                    var columnData = firstItem[x];
+                    if (columnData.GetType().IsArray)
+                    {
+                        return ((object[])columnData).Select((_, i) => $"{x}[{i}]");
+                    }
+                    return new[] { x };
+                });
+            using (var fileStream = File.Create(filename))
+            using (var writer = new StreamWriter(fileStream))
+            {
+                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    MemberTypes = MemberTypes.Fields
+                }))
+                {
+                    csv.WriteRecords(db2Storage.Values);
+                }
+            }
+        }
     }
 }

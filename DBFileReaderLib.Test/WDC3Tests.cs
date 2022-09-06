@@ -88,5 +88,30 @@ namespace DBFileReaderLib.Test
 
             Assert.Equal(originalBytes, writtenBytes);
         }
+
+        [Fact]
+        public void Exporting_And_Importing_SkillRaceClassInfo_DB2_Should_Produce_Same_File()
+        {
+            var dbdProvider = new DBDProvider();
+            var dbcProvider = new DBCProvider();
+            var dbcd = new DBCD.DBCD(dbcProvider, dbdProvider);
+            var filePath = "DB2Files/SkillRaceClassInfo.db2";
+            var storage = dbcd.Load(filePath);
+
+            var tempExportPath = "SkillRaceClassInfo.csv";
+            storage.Export(tempExportPath);
+            storage.Import(tempExportPath);
+
+            File.Delete(tempExportPath);
+
+            var tempFileName = "DB2Files/SkillRaceClassInfo_mod.db2";
+
+            storage.Save(tempFileName);
+
+            var originalBytes = File.ReadAllBytes(filePath);
+            var writtenBytes = File.ReadAllBytes(tempFileName);
+
+            Assert.Equal(originalBytes, writtenBytes);
+        }
     }
 }

@@ -33,9 +33,8 @@
                 <MenuItem x:Name="CloseDB" Header="Close DB2" Click="Close_Click" InputGestureText="Ctrl+W"/>
                 <MenuItem x:Name="Exit" Header="Exit" Click="Exit_Click"/>
             </MenuItem>
-            <MenuItem Header="_Edit"/>
-            <MenuItem Header="_Export"/>
-            <MenuItem Header="_Tools"/>
+            <MenuItem Header="_Export" Click="Export_Click"/>
+            <MenuItem Header="_Import" Click="Import_Click"/>
         </Menu>
         <Grid Grid.Row="1" Grid.ColumnSpan="2">
             <DataGrid x:Name="DB2DataGrid" Margin="5,5,5,5" Background="#FF939393" CanUserResizeRows="False"

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -84,7 +85,11 @@ namespace WDBXEditor2
         /// </summary>
         private void PopulateColumns(IDBCDStorage storage, ref DataTable data)
         {
-            var firstItem = storage.Values.First();
+            var firstItem = storage.Values.FirstOrDefault();
+            if (firstItem == null)
+            {
+                return;
+            }
 
             foreach (string columnName in firstItem.GetDynamicMemberNames())
             {
@@ -200,5 +205,49 @@ namespace WDBXEditor2
                 }
             }
         }
+
+        private void Export_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentOpenDB2))
+                return;
+
+            var saveFileDialog = new SaveFileDialog
+            {
+                FileName = Path.GetFileNameWithoutExtension(currentOpenDB2) + ".csv",
+                Filter = "Comma Seperated Values Files (*.csv)|*.csv",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                dbLoader.LoadedDBFiles[currentOpenDB2].Export(saveFileDialog.FileName);
+            }
+        }
+
+        private void Import_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(currentOpenDB2))
+                return;
+
+            var openFileDialog = new OpenFileDialog
+            {
+                Multiselect = false,
+                Filter = "Comma Seperated Values Files (*.csv)|*.csv",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                var storage = dbLoader.LoadedDBFiles[currentOpenDB2];
+                var fileName = openFileDialog.FileNames[0];
+                storage.Import(fileName);
+                var data = new DataTable();
+                PopulateColumns(storage, ref data);
+                if (storage.Values.Count > 0)
+                    PopulateDataView(storage, ref data);
+                DB2DataGrid.ItemsSource = data.DefaultView;
+            }
+        }
+
     }
 }
