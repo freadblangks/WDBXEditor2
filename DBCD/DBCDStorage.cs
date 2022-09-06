@@ -134,22 +134,60 @@ namespace DBCD
             using (var reader = new StreamReader(fileName))
             using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                MemberTypes = MemberTypes.Fields
+                MemberTypes = MemberTypes.Fields,
+                HasHeaderRecord = true,
+                
             }))
             {
-                csv.Read();
-                csv.ReadHeader();
+                csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
+                //csv.Read();
+                //csv.ReadHeader();
                 var records = csv.GetRecords<T>();
                 db2Storage.Clear();
                 Clear();
                 foreach (var record in records)
                 {
+                    var fields = typeof(T).GetFields();
+                    var arrayFields = fields.Where(x => x.FieldType.IsArray);
+                    foreach(var arrayField in arrayFields)
+                    {
+                        var count = csv.HeaderRecord.Where(x => x.Contains(arrayField.Name)).ToList().Count();
+                        var rowRecords = new string[count];
+                        Array.Copy(csv.Parser.Record, Array.IndexOf(csv.HeaderRecord, arrayField.Name + 0), rowRecords, 0, count);
+                        arrayField.SetValue(record, _arrayConverters[arrayField.FieldType](count, rowRecords));
+                    }
                     var id = (int)fieldAccessor[record, "ID"];
                     Add(id, new DBCDRow(id, record, fieldAccessor));
                     db2Storage.Add(id, record);
                 }
             }
         }
+
+        private static Dictionary<Type, Func<int, string[], object>> _arrayConverters = new Dictionary<Type, Func<int, string[], object>>()
+        {
+            [typeof(ulong[])] = (size, records) => ConvertArray<ulong>(size, records),
+            [typeof(long[])] = (size, records) => ConvertArray<long>(size, records),
+            [typeof(float[])] = (size, records) => ConvertArray<float>(size, records),
+            [typeof(int[])] = (size, records) => ConvertArray<int>(size, records),
+            [typeof(uint[])] = (size, records) => ConvertArray<uint>(size, records),
+            [typeof(ulong[])] = (size, records) => ConvertArray<ulong>(size, records),
+            [typeof(short[])] = (size, records) => ConvertArray<short>(size, records),
+            [typeof(ushort[])] = (size, records) => ConvertArray<ushort>(size, records),
+            [typeof(byte[])] = (size, records) => ConvertArray<byte>(size, records),
+            [typeof(sbyte[])] = (size, records) => ConvertArray<sbyte>(size, records),
+            [typeof(string[])] = (size, records) => ConvertArray<string>(size, records),
+        };
+
+        private static object ConvertArray<TConvert>(int size, string[] records) 
+        {
+            var result = new TConvert[size];
+            for(var i = 0; i < size; i++)
+            {
+                result[i] = (TConvert)Convert.ChangeType(records[i], typeof(TConvert));
+            }
+            return result;
+        }
+
 
         public void Export(string filename)
         {
@@ -165,18 +203,26 @@ namespace DBCD
                     var columnData = firstItem[x];
                     if (columnData.GetType().IsArray)
                     {
-                        return ((object[])columnData).Select((_, i) => $"{x}[{i}]");
+                        var result = new string[((Array)columnData).Length];
+                        for(int i = 0; i < result.Length; i++)
+                        {
+                            result[i] = x + i;
+                        }
+                        return result;
                     }
                     return new[] { x };
                 });
             using (var fileStream = File.Create(filename))
             using (var writer = new StreamWriter(fileStream))
             {
+                writer.WriteLine(string.Join(",", columnNames));
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
-                    MemberTypes = MemberTypes.Fields
+                    MemberTypes = MemberTypes.Fields,
+                    HasHeaderRecord = false
                 }))
                 {
+                    csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
                     csv.WriteRecords(db2Storage.Values);
                 }
             }
