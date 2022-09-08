@@ -33,6 +33,10 @@
                 <MenuItem x:Name="CloseDB" Header="Close DB2" Click="Close_Click" InputGestureText="Ctrl+W"/>
                 <MenuItem x:Name="Exit" Header="Exit" Click="Exit_Click"/>
             </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Set Column Value" Click="SetColumn_Click"></MenuItem>
+                <MenuItem Header="_Replace Column Value" Click="ReplaceColumn_Click"></MenuItem>
+            </MenuItem>
             <MenuItem Header="_Export" Click="Export_Click"/>
             <MenuItem Header="_Import" Click="Import_Click"/>
         </Menu>

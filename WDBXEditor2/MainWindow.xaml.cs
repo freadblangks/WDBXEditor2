@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using WDBXEditor2.Controller;
 using WDBXEditor2.Misc;
+using WDBXEditor2.Views;
 
 namespace WDBXEditor2
 {
@@ -19,8 +20,8 @@ namespace WDBXEditor2
     public partial class MainWindow : Window
     {
         private DBLoader dbLoader = new DBLoader();
-        private string currentOpenDB2 = string.Empty;
-        private IDBCDStorage openedDB2Storage;
+        public string CurrentOpenDB2 { get; set; } = string.Empty;
+        public IDBCDStorage OpenedDB2Storage { get; set; }
 
         public MainWindow()
         {
@@ -56,28 +57,17 @@ namespace WDBXEditor2
             DB2DataGrid.Columns.Clear();
             DB2DataGrid.ItemsSource = new List<string>();
 
-            currentOpenDB2 = (string)OpenDBItems.SelectedItem;
-            if (currentOpenDB2 == null)
+            CurrentOpenDB2 = (string)OpenDBItems.SelectedItem;
+            if (CurrentOpenDB2 == null)
                 return;
 
-            if (dbLoader.LoadedDBFiles.TryGetValue(currentOpenDB2, out IDBCDStorage storage))
+            if (dbLoader.LoadedDBFiles.TryGetValue(CurrentOpenDB2, out IDBCDStorage storage))
             {
-                var stopWatch = new Stopwatch();
-                stopWatch.Start();
-
-                var data = new DataTable();
-                PopulateColumns(storage, ref data);
-                if (storage.Values.Count > 0)
-                    PopulateDataView(storage, ref data);
-
-                stopWatch.Stop();
-                Console.WriteLine($"Populating Grid: {currentOpenDB2} Elapsed Time: {stopWatch.Elapsed}");
-
-                openedDB2Storage = storage;
-                DB2DataGrid.ItemsSource = data.DefaultView;
+                OpenedDB2Storage = storage;
+                ReloadDataView();
             }
 
-            Title = $"WDBXEditor2  -  {Constants.Version}  -  {currentOpenDB2}";
+            Title = $"WDBXEditor2  -  {Constants.Version}  -  {CurrentOpenDB2}";
         }
 
         /// <summary>
@@ -141,36 +131,36 @@ namespace WDBXEditor2
             Title = $"WDBXEditor2  -  {Constants.Version}";
 
             // Remove the DB2 file from the open files.
-            OpenDBItems.Items.Remove(currentOpenDB2);
+            OpenDBItems.Items.Remove(CurrentOpenDB2);
 
             // Clear DataGrid
             DB2DataGrid.Columns.Clear();
 
-            currentOpenDB2 = string.Empty;
-            openedDB2Storage = null;
+            CurrentOpenDB2 = string.Empty;
+            OpenedDB2Storage = null;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            if (!string.IsNullOrEmpty(currentOpenDB2))
-                dbLoader.LoadedDBFiles[currentOpenDB2].Save(currentOpenDB2);
+            if (!string.IsNullOrEmpty(CurrentOpenDB2))
+                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(CurrentOpenDB2);
         }
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentOpenDB2))
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
                 return;
 
             var saveFileDialog = new SaveFileDialog
             {
-                FileName = currentOpenDB2,
+                FileName = CurrentOpenDB2,
                 Filter = "DB2 Files (*.db2)|*.db2",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                dbLoader.LoadedDBFiles[currentOpenDB2].Save(saveFileDialog.FileName);
+                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(saveFileDialog.FileName);
             }
         }
 
@@ -186,15 +176,15 @@ namespace WDBXEditor2
                 if (e.Column != null)
                 {
                     var rowIdx = e.Row.GetIndex();
-                    if (rowIdx > openedDB2Storage.Keys.Count)
+                    if (rowIdx > OpenedDB2Storage.Keys.Count)
                         throw new Exception();
 
                     var newVal = e.EditingElement as TextBox;
 
-                    var dbcRow = openedDB2Storage.Values.ElementAt(rowIdx);
+                    var dbcRow = OpenedDB2Storage.Values.ElementAt(rowIdx);
                     try
                     {
-                        dbcRow[currentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
+                        dbcRow[CurrentOpenDB2, e.Column.Header.ToString()] = newVal.Text;
                     }
                     catch
                     {
@@ -208,25 +198,25 @@ namespace WDBXEditor2
 
         private void Export_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentOpenDB2))
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
                 return;
 
             var saveFileDialog = new SaveFileDialog
             {
-                FileName = Path.GetFileNameWithoutExtension(currentOpenDB2) + ".csv",
+                FileName = Path.GetFileNameWithoutExtension(CurrentOpenDB2) + ".csv",
                 Filter = "Comma Seperated Values Files (*.csv)|*.csv",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
             };
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                dbLoader.LoadedDBFiles[currentOpenDB2].Export(saveFileDialog.FileName);
+                dbLoader.LoadedDBFiles[CurrentOpenDB2].Export(saveFileDialog.FileName);
             }
         }
 
         private void Import_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(currentOpenDB2))
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
                 return;
 
             var openFileDialog = new OpenFileDialog
@@ -238,16 +228,41 @@ namespace WDBXEditor2
 
             if (openFileDialog.ShowDialog() == true)
             {
-                var storage = dbLoader.LoadedDBFiles[currentOpenDB2];
+                var storage = dbLoader.LoadedDBFiles[CurrentOpenDB2];
                 var fileName = openFileDialog.FileNames[0];
                 storage.Import(fileName);
-                var data = new DataTable();
-                PopulateColumns(storage, ref data);
-                if (storage.Values.Count > 0)
-                    PopulateDataView(storage, ref data);
-                DB2DataGrid.ItemsSource = data.DefaultView;
+                ReloadDataView();
             }
         }
 
+        private void SetColumn_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
+                return;
+            new SetColumnWindow(this).Show();
+        }
+
+        private void ReplaceColumn_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
+                return;
+
+            new ReplaceColumnWindow(this).Show();
+        }
+
+        public void ReloadDataView()
+        {
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+
+            var data = new DataTable();
+            PopulateColumns(OpenedDB2Storage, ref data);
+            if (OpenedDB2Storage.Values.Count > 0)
+                PopulateDataView(OpenedDB2Storage, ref data);
+
+            stopWatch.Stop();
+            Console.WriteLine($"Populating Grid: {CurrentOpenDB2} Elapsed Time: {stopWatch.Elapsed}");
+            DB2DataGrid.ItemsSource = data.DefaultView;
+        }
     }
 }
