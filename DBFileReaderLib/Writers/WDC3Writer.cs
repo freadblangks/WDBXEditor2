@@ -81,7 +81,7 @@ namespace DBFileReaderLib.Writers
             if (!m_writer.Flags.HasFlagExt(DB2Flags.Sparse))
                 bitWriter.Resize(m_writer.RecordSize);
             else
-                bitWriter.ResizeToMultiple(4);
+                bitWriter.ResizeToMultiple(8);
 
             Records[id] = bitWriter;
         }
@@ -293,6 +293,8 @@ namespace DBFileReaderLib.Writers
 
             using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8))
             {
+                int noSections = 1;
+
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
 
@@ -300,7 +302,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);
                 writer.Write(RecordSize);
-                writer.Write(StringTableSize);
+                writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : StringTableSize);
                 writer.Write(reader.TableHash);
                 writer.Write(reader.LayoutHash);
                 writer.Write(minIndex);
@@ -315,18 +317,19 @@ namespace DBFileReaderLib.Writers
                 writer.Write(ColumnMeta.Length * 24);           // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
-                writer.Write(1);                                // sections count
+                writer.Write(noSections);                       // Sections count 
 
                 if (storage.Count == 0)
                     return;
 
                 // section header
-                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeaderWDC3>() + palletDataSize + commonDataSize;
+                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + (Unsafe.SizeOf<SectionHeaderWDC3>() * noSections) + palletDataSize + commonDataSize;
+
 
                 writer.Write(0UL);                              // TactKeyLookup
                 writer.Write(fileOffset);                       // FileOffset
                 writer.Write(RecordsCount);                     // NumRecords
-                writer.Write(StringTableSize);
+                writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : StringTableSize);
                 writer.Write(0);                                // OffsetRecordsEndOffset
                 if(Flags.HasFlagExt(DB2Flags.Index))
                 {
@@ -338,6 +341,21 @@ namespace DBFileReaderLib.Writers
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
                 writer.Write(CopyData.Count);                   // CopyTableCount
+
+                // DEBUG
+                // Write 0's for corect offset
+                for (int i = 0; i < (noSections - 1); i++)
+                {
+                    writer.Write(0UL);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                }
 
                 // field meta
                 writer.WriteArray(Meta);
@@ -384,8 +402,6 @@ namespace DBFileReaderLib.Writers
                     }
                 }
 
-
-
                 // string table
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -408,13 +424,19 @@ namespace DBFileReaderLib.Writers
                 if (Flags.HasFlagExt(DB2Flags.Index))
                     writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
 
-
                 // copy table
-                foreach (var copyRecord in CopyData.OrderBy(x => x.Value))
+                IEnumerable<KeyValuePair<int,int>> copyData = CopyData;
+                // Not sure if this matters but AlliedRace seems to be sorted. Whereas CopyLine.db2 and ItemSparse does not appear to be sorted.
+                if (!Flags.HasFlagExt(DB2Flags.Sparse))
+                {
+                    copyData = CopyData.OrderBy(x => x.Value);
+                }
+                foreach (var copyRecord in copyData)
                 {
                     writer.Write(copyRecord.Key);
                     writer.Write(copyRecord.Value);
                 }
+
 
                 // sparse data
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
