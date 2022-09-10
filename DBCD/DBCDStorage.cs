@@ -40,10 +40,26 @@ namespace DBCD
         {
             set
             {
+
                 var newRaw = (object)raw;
                 var type = newRaw.GetType().GetField(fieldname);
-                type.SetValue(newRaw, Convert.ChangeType(value, type.FieldType));
-                raw = (dynamic)newRaw;
+                if (type == null)
+                {
+                    var index = 0;
+                    var n = 1;
+                    while(int.TryParse(fieldname[^1].ToString(), out var indexN))
+                    {
+                        fieldname = fieldname.Substring(0, fieldname.Length-1);
+                        index += n * indexN;
+                        n *= 10;
+                    }
+                    type = newRaw.GetType().GetField(fieldname);
+                    ((Array)type.GetValue(newRaw)).SetValue(Convert.ChangeType(value, type.FieldType.GetElementType()), index);
+                } else
+                {
+                    type.SetValue(newRaw, Convert.ChangeType(value, type.FieldType));
+                    raw = (dynamic)newRaw;
+                }
             }
         }
 
@@ -136,7 +152,7 @@ namespace DBCD
             {
                 MemberTypes = MemberTypes.Fields,
                 HasHeaderRecord = true,
-                
+
             }))
             {
                 csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
@@ -149,7 +165,7 @@ namespace DBCD
                 {
                     var fields = typeof(T).GetFields();
                     var arrayFields = fields.Where(x => x.FieldType.IsArray);
-                    foreach(var arrayField in arrayFields)
+                    foreach (var arrayField in arrayFields)
                     {
                         var count = csv.HeaderRecord.Where(x => x.Contains(arrayField.Name)).ToList().Count();
                         var rowRecords = new string[count];
@@ -178,10 +194,10 @@ namespace DBCD
             [typeof(string[])] = (size, records) => ConvertArray<string>(size, records),
         };
 
-        private static object ConvertArray<TConvert>(int size, string[] records) 
+        private static object ConvertArray<TConvert>(int size, string[] records)
         {
             var result = new TConvert[size];
-            for(var i = 0; i < size; i++)
+            for (var i = 0; i < size; i++)
             {
                 result[i] = (TConvert)Convert.ChangeType(records[i], typeof(TConvert));
             }
@@ -204,7 +220,7 @@ namespace DBCD
                     if (columnData.GetType().IsArray)
                     {
                         var result = new string[((Array)columnData).Length];
-                        for(int i = 0; i < result.Length; i++)
+                        for (int i = 0; i < result.Length; i++)
                         {
                             result[i] = x + i;
                         }

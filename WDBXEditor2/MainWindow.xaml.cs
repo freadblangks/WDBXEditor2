@@ -250,6 +250,14 @@ namespace WDBXEditor2
             new ReplaceColumnWindow(this).Show();
         }
 
+        private void SetBitColumn_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
+                return;
+
+            new SetFlagWindow(this).Show();
+        }
+
         public void ReloadDataView()
         {
             var stopWatch = new Stopwatch();

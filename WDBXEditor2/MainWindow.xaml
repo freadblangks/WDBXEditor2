@@ -36,6 +36,7 @@
             <MenuItem Header="_Edit">
                 <MenuItem Header="_Set Column Value" Click="SetColumn_Click"></MenuItem>
                 <MenuItem Header="_Replace Column Value" Click="ReplaceColumn_Click"></MenuItem>
+                <MenuItem Header="Set/Unset _Bit in Column" Click="SetBitColumn_Click"></MenuItem>
             </MenuItem>
             <MenuItem Header="_Export" Click="Export_Click"/>
             <MenuItem Header="_Import" Click="Import_Click"/>
