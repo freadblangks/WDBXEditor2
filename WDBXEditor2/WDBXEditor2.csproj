@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Page Update="Views\SetDependentColumnWindow.xaml">
+      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Update="Views\ReplaceColumnWindow.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
       <SubType>Designer</SubType>

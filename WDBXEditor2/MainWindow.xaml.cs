@@ -258,6 +258,14 @@ namespace WDBXEditor2
             new SetFlagWindow(this).Show();
         }
 
+        private void SetDependentColumn_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
+                return;
+
+            new SetDependentColumnWindow(this).Show();
+        }
+
         public void ReloadDataView()
         {
             var stopWatch = new Stopwatch();
