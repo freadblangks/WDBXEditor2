@@ -100,6 +100,7 @@ namespace DBCD
         void Save(string filename);
         void Export(string fileName);
         void Import(string fileName);
+        void AddEmpty();
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -142,11 +143,6 @@ namespace DBCD
 
         public void Import(string fileName)
         {
-            var firstItem = Values.FirstOrDefault();
-            if (firstItem == null)
-            {
-                return;
-            }
             using (var reader = new StreamReader(fileName))
             using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
@@ -242,6 +238,34 @@ namespace DBCD
                     csv.WriteRecords(db2Storage.Values);
                 }
             }
+        }
+
+        public void AddEmpty()
+        {
+            var lastItem = Values.LastOrDefault();
+            if (lastItem == null)
+            {
+                return;
+            }
+            var fieldNames = lastItem.GetDynamicMemberNames();
+            var toAdd = new T();
+            var fields = typeof(T).GetFields();
+            var arrayFields = fields.Where(x => x.FieldType.IsArray);
+            foreach (var arrayField in arrayFields)
+            {
+                var count = fieldNames.Where(x => x.Contains(arrayField.Name)).ToList().Count();
+                var rowRecords = new string[count];
+                for(var i = 0; i < count; i++)
+                {
+                    rowRecords[i] = Activator.CreateInstance(arrayField.FieldType.GetElementType()).ToString();
+                }
+                arrayField.SetValue(toAdd, _arrayConverters[arrayField.FieldType](count, rowRecords));
+            }
+            var id = lastItem.ID + 1;
+            var idField = typeof(T).GetField("ID");
+            idField.SetValue(toAdd, id);
+            Add(id, new DBCDRow(id, toAdd, fieldAccessor));
+            db2Storage.Add(id, toAdd);
         }
     }
 }

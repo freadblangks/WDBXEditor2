@@ -176,8 +176,8 @@ namespace WDBXEditor2
                 if (e.Column != null)
                 {
                     var rowIdx = e.Row.GetIndex();
-                    if (rowIdx > OpenedDB2Storage.Keys.Count)
-                        throw new Exception();
+                    if (rowIdx >= OpenedDB2Storage.Keys.Count)
+                        OpenedDB2Storage.AddEmpty();
 
                     var newVal = e.EditingElement as TextBox;
 

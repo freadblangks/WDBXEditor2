@@ -47,7 +47,8 @@
                       CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                       ItemsSource="{Binding null, IsAsync=True}" EnableColumnVirtualization="True" EnableRowVirtualization="True"
-                      CellEditEnding="DB2DataGrid_CellEditEnding" />
+                      CellEditEnding="DB2DataGrid_CellEditEnding"
+                      />
         </Grid>
         <Grid Grid.Row="2" Grid.Column="0">
             <GroupBox Header="Files" Margin="5,0,5,10">
