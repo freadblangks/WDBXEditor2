@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Xml;
 
 namespace DBFileReaderLib.Writers
 {
@@ -56,9 +57,16 @@ namespace DBFileReaderLib.Writers
 
                 // reference data field
                 // Best interpretation I have so far based on ChrCustomizationChoice, where refdata = ChrCustomizationOptionId, which is column 2, the column after index and apparantly only lookup
-                if (m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex <= (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
+                if (!m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex <= (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                }
+
+                // Another case for ItemDisplayInfoMaterialRes where the Ref column is the link to ItemDisplayInfo, the last column
+                if (m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && i >= m_writer.FieldCache.Length - m_writer.LookupColumnCount)
+                {
+                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                    continue;
                 }
 
                 if (info.IsArray)
@@ -284,7 +292,12 @@ namespace DBFileReaderLib.Writers
 
             WDC3RowSerializer<T> serializer = new WDC3RowSerializer<T>(this);
             serializer.Serialize(storage);
-            serializer.GetCopyRows();
+
+            // ItemInfoDisplayMaterialRes does not do Copy rows.
+            if (!(Flags.HasFlagExt(DB2Flags.Index) && LookupColumnCount > 0))
+            {
+                serializer.GetCopyRows();
+            }
             serializer.UpdateStringOffsets(storage);
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
@@ -331,10 +344,11 @@ namespace DBFileReaderLib.Writers
                 writer.Write(RecordsCount);                     // NumRecords
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : StringTableSize);
                 writer.Write(0);                                // OffsetRecordsEndOffset
-                if(Flags.HasFlagExt(DB2Flags.Index))
+                if (Flags.HasFlagExt(DB2Flags.Index))
                 {
                     writer.Write(RecordsCount * 4);                 // IndexDataSize
-                } else
+                }
+                else
                 {
                     writer.Write(0);                                 // IndexDataSize
                 }
@@ -356,6 +370,7 @@ namespace DBFileReaderLib.Writers
                     writer.Write(0);
                     writer.Write(0);
                 }
+
 
                 // field meta
                 writer.WriteArray(Meta);
@@ -421,11 +436,18 @@ namespace DBFileReaderLib.Writers
                 }
 
                 // index table
+
+                // TODO: CHECK IF INDEX IS ALWAYS COMPLETE OR ALSO WITHOUT COPYDATA
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
+                {
+                    if (LookupColumnCount == 0)
+                        writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
+                    else
+                        writer.WriteArray(serializer.Records.Keys.ToArray());
+                }
 
                 // copy table
-                IEnumerable<KeyValuePair<int,int>> copyData = CopyData;
+                IEnumerable<KeyValuePair<int, int>> copyData = CopyData;
                 // Not sure if this matters but AlliedRace seems to be sorted. Whereas CopyLine.db2 and ItemSparse does not appear to be sorted.
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -453,17 +475,17 @@ namespace DBFileReaderLib.Writers
                     for (int i = 0; i < ReferenceData.Count; i++)
                     {
                         // Based on observation in SkillRaceClassInfo.db2, copy records do not have their reference copied.
-                        var recordId = serializer.Records.Keys.ElementAt(i);
-                        if (CopyData.Keys.Contains(recordId))
-                        {
-                            var copyRecordId = CopyData[recordId];
-                            var copyIndex = serializer.Records.Keys.ToList().IndexOf(copyRecordId);
-                            writer.Write(ReferenceData[copyIndex]);
-                            writer.Write(copyIndex - CopyData.Values.ToList().IndexOf(copyRecordId));
-                            refDataWrote++;
-                            continue;
-                        }
-                        
+                        //var recordId = serializer.Records.Keys.ElementAt(i);
+                        //if (CopyData.Keys.Contains(recordId))
+                        //{
+                        //    var copyRecordId = CopyData[recordId];
+                        //    var copyIndex = serializer.Records.Keys.ToList().IndexOf(copyRecordId);
+                        //    writer.Write(ReferenceData[copyIndex]);
+                        //    writer.Write(copyIndex - CopyData.Values.ToList().IndexOf(copyRecordId));
+                        //    refDataWrote++;
+                        //    continue;
+                        //}
+
                         if (i < ReferenceData.Count)
                         {
                             writer.Write(ReferenceData[i]);
