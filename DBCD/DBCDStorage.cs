@@ -163,7 +163,7 @@ namespace DBCD
                     var arrayFields = fields.Where(x => x.FieldType.IsArray);
                     foreach (var arrayField in arrayFields)
                     {
-                        var count = csv.HeaderRecord.Where(x => x.Contains(arrayField.Name)).ToList().Count();
+                        var count = csv.HeaderRecord.Where(x => x.StartsWith(arrayField.Name)).ToList().Count();
                         var rowRecords = new string[count];
                         Array.Copy(csv.Parser.Record, Array.IndexOf(csv.HeaderRecord, arrayField.Name + 0), rowRecords, 0, count);
                         arrayField.SetValue(record, _arrayConverters[arrayField.FieldType](count, rowRecords));
