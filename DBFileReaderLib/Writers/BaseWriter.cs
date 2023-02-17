@@ -2,6 +2,7 @@
 using DBFileReaderLib.Readers;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace DBFileReaderLib.Writers
 {
@@ -69,7 +70,7 @@ namespace DBFileReaderLib.Writers
             StringTable.Add(value, StringTableSize);
 
             int offset = StringTableSize;
-            StringTableSize += value.Length + 1;
+            StringTableSize += Encoding.UTF8.GetBytes(value).Length + 1;
             return offset;
         }
 
