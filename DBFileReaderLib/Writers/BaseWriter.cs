@@ -17,6 +17,8 @@ namespace DBFileReaderLib.Writers
         public int LookupColumnCount { get; set; }
         public DB2Flags Flags { get; }
 
+        public uint TableHash { get; }
+
         #region Data
         public FieldMetaData[] Meta { get; protected set; }
         public ColumnMetaData[] ColumnMeta { get; protected set; }
@@ -41,6 +43,7 @@ namespace DBFileReaderLib.Writers
             CopyData = new SortedDictionary<int, int>();
             Meta = reader.Meta;
             ColumnMeta = reader.ColumnMeta;
+            TableHash = reader.TableHash;
 
             if (ColumnMeta != null)
             {

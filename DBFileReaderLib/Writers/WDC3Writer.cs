@@ -56,18 +56,27 @@ namespace DBFileReaderLib.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // reference data field
-                // Best interpretation I have so far based on ChrCustomizationChoice, where refdata = ChrCustomizationOptionId, which is column 2, the column after index and apparantly only lookup
-                if (!m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex <= (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
+                // This either starts from the left or the rightmost column and I do not know which determines what.
+                // Add hashes as needed
+
+                uint[] rightRefTables = { 
+                    3322146344 // SpellMisc.db2
+                };
+                if (rightRefTables.Contains(m_writer.TableHash))
+                {
+                    // RIGHTMOST COLUMN = REF
+                    if (m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length)
+                    {
+                        m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                        continue;
+                    }
+                }
+                // LEFTMOST COLUMN = REF
+                else if (m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex == (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
                 }
 
-                // Another case for ItemDisplayInfoMaterialRes where the Ref column is the link to ItemDisplayInfo, the last column
-                if (m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && i >= m_writer.FieldCache.Length - m_writer.LookupColumnCount)
-                {
-                    m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-                    continue;
-                }
 
                 if (info.IsArray)
                 {
