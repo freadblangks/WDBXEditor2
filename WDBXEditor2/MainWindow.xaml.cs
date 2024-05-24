@@ -21,6 +21,8 @@ namespace WDBXEditor2
     {
         private DBLoader dbLoader = new DBLoader();
         public string CurrentOpenDB2 { get; set; } = string.Empty;
+
+        public Dictionary<string, string> OpenedDB2Paths { get; set; } = new Dictionary<string, string>();
         public IDBCDStorage OpenedDB2Storage { get; set; }
 
         public MainWindow()
@@ -47,7 +49,10 @@ namespace WDBXEditor2
                 var files = openFileDialog.FileNames;
 
                 foreach (string loadedDB in dbLoader.LoadFiles(files))
+                {
+                    OpenedDB2Paths[loadedDB] = files.First(x => Path.GetFileName(x) == loadedDB);
                     OpenDBItems.Items.Add(loadedDB);
+                }
             }
         }
 
@@ -143,7 +148,7 @@ namespace WDBXEditor2
         private void Save_Click(object sender, RoutedEventArgs e)
         {
             if (!string.IsNullOrEmpty(CurrentOpenDB2))
-                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(CurrentOpenDB2);
+                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(OpenedDB2Paths[CurrentOpenDB2]);
         }
 
         private void SaveAs_Click(object sender, RoutedEventArgs e)
