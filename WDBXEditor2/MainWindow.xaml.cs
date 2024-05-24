@@ -278,7 +278,13 @@ namespace WDBXEditor2
 
             stopWatch.Stop();
             Console.WriteLine($"Populating Grid: {CurrentOpenDB2} Elapsed Time: {stopWatch.Elapsed}");
+            data.RowDeleting += Data_RowDeleted;
             DB2DataGrid.ItemsSource = data.DefaultView;
+        }
+
+        private void Data_RowDeleted(object sender, DataRowChangeEventArgs e)
+        {
+            OpenedDB2Storage.RemoveFromStorage(int.Parse(e.Row[0].ToString()));
         }
     }
 }

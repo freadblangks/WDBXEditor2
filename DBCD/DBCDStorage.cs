@@ -101,6 +101,7 @@ namespace DBCD
         void Export(string fileName);
         void Import(string fileName);
         void AddEmpty();
+        void RemoveFromStorage(int key);
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -231,7 +232,11 @@ namespace DBCD
                 using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
                     MemberTypes = MemberTypes.Fields,
-                    HasHeaderRecord = false
+                    HasHeaderRecord = false,
+                    ShouldQuote = (args) =>
+                    {
+                        return args.FieldType == typeof(string);
+                    }
                 }))
                 {
                     csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
@@ -266,6 +271,12 @@ namespace DBCD
             idField.SetValue(toAdd, id);
             Add(id, new DBCDRow(id, toAdd, fieldAccessor));
             db2Storage.Add(id, toAdd);
+        }
+
+        public void RemoveFromStorage(int key)
+        {
+            base.Remove(key);
+            db2Storage.Remove(key);
         }
     }
 }
