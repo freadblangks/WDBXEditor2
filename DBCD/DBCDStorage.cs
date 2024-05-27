@@ -77,6 +77,8 @@ namespace DBCD
         {
             return fieldAccessor.FieldNames;
         }
+
+        public dynamic GetRaw() {  return raw; }   
     }
 
     public class DynamicKeyValuePair<T>
@@ -102,6 +104,7 @@ namespace DBCD
         void Import(string fileName);
         void AddEmpty();
         void RemoveFromStorage(int key);
+        Type GetRowType();
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -255,10 +258,12 @@ namespace DBCD
             var fieldNames = lastItem.GetDynamicMemberNames();
             var toAdd = new T();
             var fields = typeof(T).GetFields();
+
+            // Array Fields need to be initialized to fill their length
             var arrayFields = fields.Where(x => x.FieldType.IsArray);
             foreach (var arrayField in arrayFields)
             {
-                var count = fieldNames.Where(x => x.Contains(arrayField.Name)).ToList().Count();
+                var count = ((Array)arrayField.GetValue(lastItem.GetRaw())).Length;
                 var rowRecords = new string[count];
                 for(var i = 0; i < count; i++)
                 {
@@ -266,6 +271,14 @@ namespace DBCD
                 }
                 arrayField.SetValue(toAdd, _arrayConverters[arrayField.FieldType](count, rowRecords));
             }
+
+            // String Fields need to be initialized to empty string rather than null;
+            var stringFields = fields.Where(x => x.FieldType == typeof(string));
+            foreach(var stringField in stringFields)
+            {
+                stringField.SetValue(toAdd, string.Empty);
+            }
+
             var id = lastItem.ID + 1;
             var idField = typeof(T).GetField("ID");
             idField.SetValue(toAdd, id);
@@ -277,6 +290,11 @@ namespace DBCD
         {
             base.Remove(key);
             db2Storage.Remove(key);
+        }
+
+        public Type GetRowType()
+        {
+            return typeof(T);
         }
     }
 }

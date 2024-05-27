@@ -60,7 +60,8 @@ namespace DBFileReaderLib.Writers
                 // Add hashes as needed
 
                 uint[] rightRefTables = { 
-                    3322146344 // SpellMisc.db2
+                    3322146344, // SpellMisc.db2
+                    604774165, // HelmetGeosetData.db2
                 };
                 if (rightRefTables.Contains(m_writer.TableHash))
                 {

@@ -4,6 +4,9 @@
 # Ignore .db2 files
 *.db2
 
+#Ignore launchsettings
+launchsettings.json
+
 # User-specific files
 *.suo
 *.user
