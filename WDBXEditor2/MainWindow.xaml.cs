@@ -68,11 +68,11 @@ namespace WDBXEditor2
 
             if (dbLoader.LoadedDBFiles.TryGetValue(CurrentOpenDB2, out IDBCDStorage storage))
             {
+                Title = $"WDBXEditor2  -  {Constants.Version}  -  {CurrentOpenDB2}";
                 OpenedDB2Storage = storage;
                 ReloadDataView();
             }
 
-            Title = $"WDBXEditor2  -  {Constants.Version}  -  {CurrentOpenDB2}";
         }
 
         /// <summary>
@@ -181,9 +181,6 @@ namespace WDBXEditor2
                 if (e.Column != null)
                 {
                     var rowIdx = e.Row.GetIndex();
-                    if (rowIdx >= OpenedDB2Storage.Keys.Count)
-                        OpenedDB2Storage.AddEmpty();
-
                     var newVal = e.EditingElement as TextBox;
 
                     var dbcRow = OpenedDB2Storage.Values.ElementAt(rowIdx);
@@ -290,6 +287,28 @@ namespace WDBXEditor2
         private void Data_RowDeleted(object sender, DataRowChangeEventArgs e)
         {
             OpenedDB2Storage.RemoveFromStorage(int.Parse(e.Row[0].ToString()));
+        }
+
+        private void DB2DataGrid_InitializingNewItem(object sender, InitializingNewItemEventArgs e)
+        {
+            Debug.WriteLine(e.NewItem);
+            var rowIdx = OpenedDB2Storage.Keys.Count;
+            OpenedDB2Storage.AddEmpty();
+            var rowData = OpenedDB2Storage.Values.ElementAt(rowIdx);
+            foreach (string columnName in rowData.GetDynamicMemberNames())
+            {
+                var columnValue = rowData[columnName];
+
+                if (columnValue.GetType().IsArray)
+                {
+                    Array columnValueArray = (Array)columnValue;
+                    for (var i = 0; i < columnValueArray.Length; ++i)
+                        
+                        ((DataRowView)e.NewItem)[columnName + i] = columnValueArray.GetValue(i);
+                }
+                else
+                    ((DataRowView)e.NewItem)[columnName] = columnValue;
+            }
         }
     }
 }

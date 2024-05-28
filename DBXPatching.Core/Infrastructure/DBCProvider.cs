@@ -1,6 +1,6 @@
 ﻿using DBCD.Providers;
 
-namespace DBXPatchTool.Infrastructure
+namespace DBXPatching.Core.Infrastructure
 {
     public class DBCProvider : IDBCProvider
     {

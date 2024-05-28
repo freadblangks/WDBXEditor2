@@ -11,7 +11,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBFileReaderLib", "DBFileRe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBFileReaderLib.Test", "DBFileReaderLib.Test\DBFileReaderLib.Test.csproj", "{478195DB-469D-45B4-877D-30BBCE48E6D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBXPatchTool", "DBXPatchTool\DBXPatchTool.csproj", "{F9881296-981B-4C30-915D-29DB10BD43AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBXPatchTool", "DBXPatchTool\DBXPatchTool.csproj", "{F9881296-981B-4C30-915D-29DB10BD43AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBXPatching.Core", "DBXPatching.Core\DBXPatching.Core.csproj", "{A7586072-ACD1-46D8-8B86-1149C6FDED7B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{F9881296-981B-4C30-915D-29DB10BD43AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F9881296-981B-4C30-915D-29DB10BD43AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F9881296-981B-4C30-915D-29DB10BD43AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7586072-ACD1-46D8-8B86-1149C6FDED7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7586072-ACD1-46D8-8B86-1149C6FDED7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7586072-ACD1-46D8-8B86-1149C6FDED7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7586072-ACD1-46D8-8B86-1149C6FDED7B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,9 +1,6 @@
 ﻿using DBCD.Providers;
-using System;
-using System.IO;
-using System.Net.Http;
 
-namespace DBXPatchTool.Infrastructure
+namespace DBXPatching.Core.Infrastructure
 {
     public class DBDProvider : IDBDProvider
     {

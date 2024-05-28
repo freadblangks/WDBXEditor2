@@ -1,20 +1,11 @@
 ﻿using DBCD;
 using DBDefsLib;
-using DBXPatchTool.Infrastructure;
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
+using DBXPatching.Core.Infrastructure;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using static DBDefsLib.Structs;
 
-namespace DBXPatchTool
+namespace DBXPatching.Core
 {
-    public enum ResultCode
+    public enum PatchingResultCode
     { 
         OK = 0,
         ERROR_INVALID_ARGUMENT =2,
@@ -29,7 +20,17 @@ namespace DBXPatchTool
         ERROR_INVALID_VALUE_FOR_FIELD = 11,
     }
 
-    public class DBPatcher
+    public class DBXPatchingOperationResult
+    {
+        public PatchingResultCode ResultCode { get; set; } = PatchingResultCode.OK;
+        public string[] Messages { get; set;} = [];
+
+        public static DBXPatchingOperationResult Ok {
+            get { return new DBXPatchingOperationResult { ResultCode = PatchingResultCode.OK }; }
+        }
+    }
+
+    public class DBXPatcher
     {
         public string DBCInputDirectory { get; set; }
         public string DBCOutputDirectory { get; set; }
@@ -44,7 +45,7 @@ namespace DBXPatchTool
 
         private readonly List<string> _modifiedFiles;
 
-        public DBPatcher(string inputDir, string outputDir)
+        public DBXPatcher(string inputDir, string outputDir)
         {
             DBCInputDirectory = inputDir;
             DBCOutputDirectory = outputDir;
@@ -58,12 +59,12 @@ namespace DBXPatchTool
             _dbcd = new DBCD.DBCD(_dbcProvider, _dbdProvider);
         }
 
-        public ResultCode ApplyPatch(Patch patch)
+        public DBXPatchingOperationResult ApplyPatch(Patch patch)
         {
             foreach (var instruction in patch.Lookup)
             {
                 var result = ApplyLookupRecordInstructions(instruction);
-                if (result != ResultCode.OK)
+                if (result.ResultCode != PatchingResultCode.OK)
                 {
                     return result;
                 }
@@ -71,7 +72,7 @@ namespace DBXPatchTool
             foreach (var instruction in patch.Add)
             {
                 var result = ApplyAddRecordInstructions(instruction);
-                if (result != ResultCode.OK)
+                if (result.ResultCode != PatchingResultCode.OK)
                 {
                     return result;
                 }
@@ -82,21 +83,24 @@ namespace DBXPatchTool
                 openedFiles[file].Save(Path.Join(DBCOutputDirectory, file));
             }
 
-            return 0;
+            return DBXPatchingOperationResult.Ok;
         }
 
-        private ResultCode ApplyLookupRecordInstructions(LookupRecordInstruction instruction)
+        private DBXPatchingOperationResult ApplyLookupRecordInstructions(LookupRecordInstruction instruction)
         {
             var records = OpenDb(instruction.Filename);
             if (string.IsNullOrEmpty(instruction.Field) || instruction.SearchValue == null)
             {
-                Console.WriteLine($"Found lookup instruction without with invalid field or searchvalue for file '{instruction.Filename}'.");
-                return ResultCode.ERROR_INVALID_LOOKUP_INSRUCTION;
+                return new DBXPatchingOperationResult()
+                {
+                    ResultCode = PatchingResultCode.ERROR_INVALID_LOOKUP_INSRUCTION,
+                    Messages = [$"Found lookup instruction without with invalid field or searchvalue for file '{instruction.Filename}'."]
+                };
             } 
             if (instruction.SearchValue is JsonElement element)
             {
                 var convertResult = ConvertJsonToFieldType(element, instruction.Filename, instruction.Field, out var convertedVal);
-                if (convertResult != ResultCode.OK)
+                if (convertResult.ResultCode != PatchingResultCode.OK)
                 {
                     return convertResult;
                 }
@@ -107,14 +111,16 @@ namespace DBXPatchTool
                 if (row[instruction.Field].Equals(instruction.SearchValue))
                 {
                     ProcessSaveReferences(row, instruction.SaveReferences);
-                    return ResultCode.OK;
+                    return DBXPatchingOperationResult.Ok;
                 }
             }
 
-            return ResultCode.ERROR_LOOKUP_FAILED;
+            return new DBXPatchingOperationResult() {
+                ResultCode = PatchingResultCode.ERROR_LOOKUP_FAILED
+            };
         }
 
-        private ResultCode ApplyAddRecordInstructions(AddRecordInstruction instruction)
+        private DBXPatchingOperationResult ApplyAddRecordInstructions(AddRecordInstruction instruction)
         {
             var records = OpenDb(instruction.Filename);
 
@@ -122,8 +128,11 @@ namespace DBXPatchTool
             var row = records.Values.LastOrDefault();
             if (row == null)
             {
-                Console.WriteLine($"Unable to add a record to file '{instruction.Filename}'");
-                return ResultCode.ERROR_INSERTING_RECORD_IN_DB;
+                return new DBXPatchingOperationResult()
+                {
+                    ResultCode = PatchingResultCode.ERROR_INSERTING_RECORD_IN_DB,
+                    Messages = [$"Unable to add a record to file '{instruction.Filename}'"]
+                };
             }
 
             if (instruction.RecordId.HasValue)
@@ -142,13 +151,19 @@ namespace DBXPatchTool
             {
                 if (string.IsNullOrEmpty(generateId.Name))
                 {
-                    Console.WriteLine($"Found generate id instruction without reference name for file '{instruction.Filename}'.");
-                    return ResultCode.ERROR_INVALID_REFERENCE_NAME;
+                    return new DBXPatchingOperationResult()
+                    {
+                        ResultCode = PatchingResultCode.ERROR_INVALID_REFERENCE_NAME,
+                        Messages = [$"Found generate id instruction without reference name for file '{instruction.Filename}'."]
+                    };
                 }
                 if (string.IsNullOrEmpty(generateId.Field))
                 {
-                    Console.WriteLine($"Found generate id instruction without reference field for file '{instruction.Filename}'.");
-                    return ResultCode.ERROR_INVALID_REFERENCE_FIELD;
+                    return new DBXPatchingOperationResult()
+                    {
+                        ResultCode = PatchingResultCode.ERROR_INVALID_REFERENCE_FIELD,
+                        Messages = [$"Found generate id instruction without reference field for file '{instruction.Filename}'."]
+                    };
                 }
                 if (_referenceIds.ContainsKey(generateId.Name) && !generateId.OverrideExisting)
                 {
@@ -180,14 +195,17 @@ namespace DBXPatchTool
                         {
                             if (col.FallBackValue == null)
                             {
-                                Console.WriteLine($"Unable to find referenced instruction with name '{col.ReferenceId}'");
-                                return ResultCode.ERROR_REFERENCE_NOT_FOUND;
+                                return new DBXPatchingOperationResult()
+                                {
+                                    ResultCode = PatchingResultCode.ERROR_REFERENCE_NOT_FOUND,
+                                    Messages = [$"Unable to find referenced instruction with name '{col.ReferenceId}'"]
+                                };
                             }
 
                             if (col.FallBackValue is JsonElement element)
                             {
                                 var convertResult = ConvertJsonToFieldType(element, instruction.Filename, col.ColumnName, out var convertedVal);
-                                if (convertResult != ResultCode.OK)
+                                if (convertResult.ResultCode != PatchingResultCode.OK)
                                 {
                                     return convertResult;
                                 }
@@ -205,7 +223,7 @@ namespace DBXPatchTool
                         if (col.Value is JsonElement element)
                         {
                             var convertResult = ConvertJsonToFieldType(element, instruction.Filename, col.ColumnName, out var convertedVal);
-                            if (convertResult != ResultCode.OK)
+                            if (convertResult.ResultCode != PatchingResultCode.OK)
                             {
                                 return convertResult;
                             }
@@ -216,8 +234,11 @@ namespace DBXPatchTool
                 }
                 catch
                 {
-                    Console.WriteLine($"Unable to set field '{col.ColumnName}' to '{col.Value}'");
-                    return ResultCode.ERROR_SETTING_VALUE;
+                    return new DBXPatchingOperationResult()
+                    {
+                        ResultCode = PatchingResultCode.ERROR_SETTING_VALUE,
+                        Messages = [$"Unable to set field '{col.ColumnName}' to '{col.Value}'"]
+                    };
                 }
             }
 
@@ -226,7 +247,7 @@ namespace DBXPatchTool
             {
                 _modifiedFiles.Add(instruction.Filename);
             }
-            return ResultCode.OK;
+            return DBXPatchingOperationResult.Ok;
         }
 
         private IDBCDStorage OpenDb(string fileName)
@@ -266,7 +287,7 @@ namespace DBXPatchTool
             }
         }
 
-        public ResultCode ConvertJsonToFieldType(JsonElement element, string fileName, string field, out object? resultValue)
+        public DBXPatchingOperationResult ConvertJsonToFieldType(JsonElement element, string fileName, string field, out object? resultValue)
         {
             var fieldInfo = openedFiles[fileName].GetRowType().GetField(field);
             while (fieldInfo == null && field.Length > 0)
@@ -277,8 +298,11 @@ namespace DBXPatchTool
             if (fieldInfo == null)
             {
                 resultValue = null;
-                Console.WriteLine($"Found instruction with invalid field reference '{field}' for file '{fileName}'.");
-                return ResultCode.ERROR_INVALID_FIELD_REFERENCE;
+                return new DBXPatchingOperationResult()
+                {
+                    ResultCode = PatchingResultCode.ERROR_INVALID_FIELD_REFERENCE,
+                    Messages = [$"Found instruction with invalid field reference '{field}' for file '{fileName}'."]
+                };
             }
             var resultType = fieldInfo.FieldType;
             if (resultType.IsArray)
@@ -288,10 +312,13 @@ namespace DBXPatchTool
             resultValue = element.Deserialize(resultType);
             if (resultValue == null)
             {
-                Console.WriteLine($"Found instruction without with invalid value '{element}' for file '{fileName}'.");
-                return ResultCode.ERROR_INVALID_VALUE_FOR_FIELD;
+                return new DBXPatchingOperationResult()
+                {
+                    ResultCode = PatchingResultCode.ERROR_INVALID_VALUE_FOR_FIELD,
+                    Messages = [$"Found instruction without with invalid value '{element}' for file '{fileName}'."]
+                };
             }
-            return ResultCode.OK;
+            return DBXPatchingOperationResult.Ok;
         }
     }
 }

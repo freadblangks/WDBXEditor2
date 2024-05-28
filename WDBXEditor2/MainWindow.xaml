@@ -47,7 +47,7 @@
                       CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                       ItemsSource="{Binding null, IsAsync=True}" EnableColumnVirtualization="True" EnableRowVirtualization="True"
-                      CellEditEnding="DB2DataGrid_CellEditEnding"
+                      CellEditEnding="DB2DataGrid_CellEditEnding" InitializingNewItem="DB2DataGrid_InitializingNewItem"
                       />
         </Grid>
         <Grid Grid.Row="2" Grid.Column="0">

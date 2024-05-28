@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using DBXPatching.Core;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DBXPatchTool
@@ -16,7 +17,7 @@ namespace DBXPatchTool
             if (!File.Exists(patchFilePath))
             {
                 Console.WriteLine($"Could not find file in provided path: '{patchFilePath}'");
-                Environment.Exit((int)ResultCode.ERROR_INVALID_ARGUMENT);
+                Environment.Exit((int)PatchingResultCode.ERROR_INVALID_ARGUMENT);
             }
             Patch? patch;
             try
@@ -29,14 +30,14 @@ namespace DBXPatchTool
             if (patch == null)
             {
                 Console.WriteLine($"Failed to read file '{patchFilePath}' as a patch file.");
-                Environment.Exit((int)ResultCode.ERROR_INVALID_ARGUMENT);
+                Environment.Exit((int)PatchingResultCode.ERROR_INVALID_ARGUMENT);
             }
             
             var readDir = args[1];
             if (!Directory.Exists(readDir))
             {
                 Console.WriteLine($"Could not find directory '{readDir}'");
-                Environment.Exit((int)ResultCode.ERROR_INVALID_ARGUMENT);
+                Environment.Exit((int)PatchingResultCode.ERROR_INVALID_ARGUMENT);
             }
 
             var outputPath = readDir;
@@ -49,9 +50,13 @@ namespace DBXPatchTool
                 }
             }
 
-            var patcher = new DBPatcher(readDir, outputPath);
+            var patcher = new DBXPatcher(readDir, outputPath);
             var result = patcher.ApplyPatch(patch);
-            Environment.Exit((int)result);
+            foreach(var message in result.Messages)
+            {
+                Console.WriteLine(message);
+            }
+            Environment.Exit((int)result.ResultCode);
         }
     }
 }
