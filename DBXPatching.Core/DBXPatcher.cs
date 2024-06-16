@@ -18,6 +18,8 @@ namespace DBXPatching.Core
         ERROR_LOOKUP_FAILED = 9,
         ERROR_INVALID_FIELD_REFERENCE = 10,
         ERROR_INVALID_VALUE_FOR_FIELD = 11,
+        ERROR_UPDATE_RECORD_ID_NOT_FOUND = 12,
+        ERROR_DB2_FILE_DOES_NOT_EXIST = 13,
     }
 
     public class DBXPatchingOperationResult
@@ -77,8 +79,16 @@ namespace DBXPatching.Core
                     return result;
                 }
             }
+            foreach (var instruction in patch.Update)
+            {
+                var result = ApplyUpdateRecordInstruction(instruction);
+                if (result.ResultCode != PatchingResultCode.OK)
+                {
+                    return result;
+                }
+            }
 
-            foreach(var file in _modifiedFiles)
+            foreach (var file in _modifiedFiles)
             {
                 openedFiles[file].Save(Path.Join(DBCOutputDirectory, file));
             }
@@ -88,7 +98,8 @@ namespace DBXPatching.Core
 
         private DBXPatchingOperationResult ApplyLookupRecordInstructions(LookupRecordInstruction instruction)
         {
-            var records = OpenDb(instruction.Filename);
+            var result = OpenDb(instruction.Filename, out var records);
+            if (result.ResultCode != PatchingResultCode.OK) { return result; }
             if (string.IsNullOrEmpty(instruction.Field) || instruction.SearchValue == null)
             {
                 return new DBXPatchingOperationResult()
@@ -106,7 +117,7 @@ namespace DBXPatching.Core
                 }
                 instruction.SearchValue = convertedVal!;
             }
-            foreach (var row in records.Values)
+            foreach (var row in records!.Values)
             {
                 if (row[instruction.Field].Equals(instruction.SearchValue))
                 {
@@ -122,9 +133,10 @@ namespace DBXPatching.Core
 
         private DBXPatchingOperationResult ApplyAddRecordInstructions(AddRecordInstruction instruction)
         {
-            var records = OpenDb(instruction.Filename);
+            var result = OpenDb(instruction.Filename, out var records);
+            if (result.ResultCode != PatchingResultCode.OK) { return result; }
 
-            records.AddEmpty();
+            records!.AddEmpty();
             var row = records.Values.LastOrDefault();
             if (row == null)
             {
@@ -172,7 +184,8 @@ namespace DBXPatching.Core
                 var searchRecords = records;
                 if (!string.IsNullOrEmpty(generateId.FileName))
                 {
-                    searchRecords = OpenDb(generateId.FileName);
+                    result = OpenDb(generateId.FileName, out searchRecords);
+                    if (result.ResultCode != PatchingResultCode.OK) { return result; }
                 }
                 _referenceIds[generateId.Name] = 1;
                 foreach(var searchRow in searchRecords.Values)
@@ -185,7 +198,64 @@ namespace DBXPatching.Core
                 }
             }
 
-            foreach (var col in instruction.Record)
+            var updateResult = SetColumnDataForRecord(row, instruction.Filename, instruction.Record);
+            if (updateResult.ResultCode != PatchingResultCode.OK) {
+                return updateResult;
+            }
+            
+            ProcessSaveReferences(row, instruction.SaveReferences);
+            if (!_modifiedFiles.Contains(instruction.Filename))
+            {
+                _modifiedFiles.Add(instruction.Filename);
+            }
+            return DBXPatchingOperationResult.Ok;
+        }
+       
+        private DBXPatchingOperationResult ApplyUpdateRecordInstruction(UpdateRecordInstruction instruction)
+        {
+            var result = OpenDb(instruction.Filename, out var records);
+            if (result.ResultCode != PatchingResultCode.OK) { return result; }
+            DBCDRow? record = null;
+            try
+            {
+                if (string.IsNullOrEmpty(instruction.Field))
+                {
+                    record = records![instruction.RecordId];
+                } else
+                {
+                    foreach (var row in records.Values)
+                    {
+                        if (row[instruction.Field].Equals(instruction.RecordId))
+                        {
+                            record = row;
+                            break;
+                        }
+                    }
+                    if (record == null)
+                    {
+                        return new DBXPatchingOperationResult()
+                        {
+                            ResultCode = PatchingResultCode.ERROR_UPDATE_RECORD_ID_NOT_FOUND,
+                            Messages = [$"Unable to find record with id: '{instruction.RecordId} for column '{instruction.Field}' in file: '{instruction.Filename}'."]
+                        };
+                    }
+                }
+            } 
+            catch
+            {
+                return new DBXPatchingOperationResult()
+                {
+                    ResultCode = PatchingResultCode.ERROR_UPDATE_RECORD_ID_NOT_FOUND,
+                    Messages = [$"Unable to find record with id: '{instruction.RecordId} in file: '{instruction.Filename}'."]
+                };
+            }
+
+            return SetColumnDataForRecord(record, instruction.Filename, instruction.Record);
+        }
+
+        private DBXPatchingOperationResult SetColumnDataForRecord(DBCDRow row, string fileName, List<ColumnData> columns)
+        {
+            foreach (var col in columns)
             {
                 try
                 {
@@ -204,35 +274,35 @@ namespace DBXPatching.Core
 
                             if (col.FallBackValue is JsonElement element)
                             {
-                                var convertResult = ConvertJsonToFieldType(element, instruction.Filename, col.ColumnName, out var convertedVal);
+                                var convertResult = ConvertJsonToFieldType(element, fileName, col.ColumnName, out var convertedVal);
                                 if (convertResult.ResultCode != PatchingResultCode.OK)
                                 {
                                     return convertResult;
                                 }
                                 col.FallBackValue = convertedVal!;
                             }
-                            row[instruction.Filename, col.ColumnName] = col.FallBackValue;
-                        } 
+                            row[fileName, col.ColumnName] = col.FallBackValue;
+                        }
                         else
                         {
-                            row[instruction.Filename, col.ColumnName] = _referenceIds[col.ReferenceId];
+                            row[fileName, col.ColumnName] = _referenceIds[col.ReferenceId];
                         }
                     }
                     else
                     {
                         if (col.Value is JsonElement element)
                         {
-                            var convertResult = ConvertJsonToFieldType(element, instruction.Filename, col.ColumnName, out var convertedVal);
+                            var convertResult = ConvertJsonToFieldType(element, fileName, col.ColumnName, out var convertedVal);
                             if (convertResult.ResultCode != PatchingResultCode.OK)
                             {
                                 return convertResult;
                             }
                             col.Value = convertedVal!;
                         }
-                        row[instruction.Filename, col.ColumnName] = col.Value;
+                        row[fileName, col.ColumnName] = col.Value;
                     }
                 }
-                catch
+                catch(Exception e)
                 {
                     return new DBXPatchingOperationResult()
                     {
@@ -241,32 +311,35 @@ namespace DBXPatching.Core
                     };
                 }
             }
-
-            ProcessSaveReferences(row, instruction.SaveReferences);
-            if (!_modifiedFiles.Contains(instruction.Filename))
-            {
-                _modifiedFiles.Add(instruction.Filename);
-            }
             return DBXPatchingOperationResult.Ok;
         }
 
-        private IDBCDStorage OpenDb(string fileName)
+        private DBXPatchingOperationResult OpenDb(string fileName, out IDBCDStorage? storage)
         {
             var db2Name = Path.GetFileName(fileName);
             if (openedFiles.ContainsKey(db2Name))
             {
-                return openedFiles[db2Name];
+                storage = openedFiles[db2Name];
+                return DBXPatchingOperationResult.Ok;
             }
 
             var db2Path = Path.Combine(DBCInputDirectory, db2Name);
+            if (!File.Exists(db2Path)) {
+                storage = null;
+                return new DBXPatchingOperationResult()
+                {
+                    Messages = [$"File '{db2Path}' does not exist."],
+                    ResultCode = PatchingResultCode.ERROR_DB2_FILE_DOES_NOT_EXIST
+                };
+            }
 
             var dbdStream = _dbdProvider.StreamForTableName(db2Path);
             var dbdReader = new DBDReader();
             var databaseDefinition = dbdReader.Read(dbdStream);
 
-            var storage = _dbcd.Load(db2Path, "9.2.7.45745", Locale.EnUS);
+            storage = _dbcd.Load(db2Path, "9.2.7.45745", Locale.EnUS);
             openedFiles[db2Name] = storage;
-            return storage;
+            return DBXPatchingOperationResult.Ok;
         }
 
         private void ProcessSaveReferences(DBCDRow row, List<ReferenceColumnData> instructions)

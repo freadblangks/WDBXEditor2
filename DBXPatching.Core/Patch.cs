@@ -4,10 +4,12 @@
     {
         public List<AddRecordInstruction> Add { get; set; }
         public List<LookupRecordInstruction> Lookup { get; set; }
+        public List<UpdateRecordInstruction> Update { get; set; }
         public Patch()
         {
             Add = [];
             Lookup = [];
+            Update = [];
         }
     }
 
@@ -43,6 +45,21 @@
             Field = string.Empty;
             SaveReferences = [];
         }
+    }
+
+    public class UpdateRecordInstruction
+    {
+        public string Filename { get; set; }
+        public int RecordId { get; set; }
+        public string? Field { get; set; }
+        public List<ColumnData> Record { get; set; }
+
+        public UpdateRecordInstruction()
+        {
+            Filename = string.Empty;
+            Record = [];
+        }
+
     }
 
     public class ReferenceColumnData
