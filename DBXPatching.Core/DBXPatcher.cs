@@ -188,7 +188,7 @@ namespace DBXPatching.Core
                     if (result.ResultCode != PatchingResultCode.OK) { return result; }
                 }
                 _referenceIds[generateId.Name] = 1;
-                foreach(var searchRow in searchRecords.Values)
+                foreach(var searchRow in searchRecords!.Values)
                 {
                     var compareVal = searchRow.FieldAs<int>(generateId.Field);
                     if (compareVal >= _referenceIds[generateId.Name])
@@ -223,7 +223,7 @@ namespace DBXPatching.Core
                     record = records![instruction.RecordId];
                 } else
                 {
-                    foreach (var row in records.Values)
+                    foreach (var row in records!.Values)
                     {
                         if (row[instruction.Field].Equals(instruction.RecordId))
                         {
@@ -250,6 +250,10 @@ namespace DBXPatching.Core
                 };
             }
 
+            if (!_modifiedFiles.Contains(instruction.Filename))
+            {
+                _modifiedFiles.Add(instruction.Filename);
+            }
             return SetColumnDataForRecord(record, instruction.Filename, instruction.Record);
         }
 
@@ -302,7 +306,7 @@ namespace DBXPatching.Core
                         row[fileName, col.ColumnName] = col.Value;
                     }
                 }
-                catch(Exception e)
+                catch
                 {
                     return new DBXPatchingOperationResult()
                     {
