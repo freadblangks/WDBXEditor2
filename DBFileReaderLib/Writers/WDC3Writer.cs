@@ -58,10 +58,10 @@ namespace DBFileReaderLib.Writers
                 // reference data field
                 // This either starts from the left or the rightmost column and I do not know which determines what.
                 // Add hashes as needed
-
                 uint[] rightRefTables = { 
                     3322146344, // SpellMisc.db2
                     604774165, // HelmetGeosetData.db2
+                    4082824155, // ItemDisplayInfoMaterialRes
                 };
                 if (rightRefTables.Contains(m_writer.TableHash))
                 {
