@@ -281,7 +281,7 @@ namespace DBCD
 
             var id = lastItem.ID + 1;
             var idField = typeof(T).GetField("ID");
-            idField.SetValue(toAdd, id);
+            idField?.SetValue(toAdd, id);
             Add(id, new DBCDRow(id, toAdd, fieldAccessor));
             db2Storage.Add(id, toAdd);
         }
