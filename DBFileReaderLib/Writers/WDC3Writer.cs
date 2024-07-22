@@ -61,15 +61,21 @@ namespace DBFileReaderLib.Writers
                 uint[] rightRefTables = { 
                     3322146344, // SpellMisc.db2
                     604774165, // HelmetGeosetData.db2
-                    4082824155, // ItemDisplayInfoMaterialRes
+                    4082824155, // ItemDisplayInfoMaterialRes.db2
+                    440872980, // TextureFileData.db2
                 };
+
+                // RIGHTMOST COLUMN = REF
                 if (rightRefTables.Contains(m_writer.TableHash))
                 {
-                    // RIGHTMOST COLUMN = REF
-                    if (m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length)
+                    if (m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length)
                     {
                         m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
                         continue;
+                    }
+                    else if (m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length -1)
+                    {
+                        m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
                     }
                 }
                 // LEFTMOST COLUMN = REF
