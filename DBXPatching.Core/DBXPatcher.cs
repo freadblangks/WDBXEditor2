@@ -191,7 +191,7 @@ namespace DBXPatching.Core
                     result = OpenDb(generateId.FileName, out searchRecords);
                     if (result.ResultCode != PatchingResultCode.OK) { return result; }
                 }
-                _referenceIds[generateId.Name] = 1;
+                _referenceIds[generateId.Name] = generateId.StartFrom ?? 1;
                 foreach(var searchRow in searchRecords!.Values)
                 {
                     var compareVal = searchRow.FieldAs<int>(generateId.Field);

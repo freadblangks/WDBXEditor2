@@ -21,7 +21,7 @@
         public List<ColumnData> Record { get; set; }
 
         public List<ReferenceColumnData> SaveReferences { get; set; }
-        public List<RefenceColumnIdData> GenerateIds { get; set; }
+        public List<GenerateColumnIdData> GenerateIds { get; set; }
 
         public AddRecordInstruction()
         {
@@ -72,14 +72,15 @@
             Name = string.Empty;
         }
     }
-    public class RefenceColumnIdData
+    public class GenerateColumnIdData
     {
         public string? FileName { get; set; }
         public string Name { get; set; }
         public string Field { get; set; }
         public bool OverrideExisting { get; set; }
+        public int? StartFrom { get; set; }
 
-        public RefenceColumnIdData()
+        public GenerateColumnIdData()
         {
             Name = string.Empty;
             Field = string.Empty;
