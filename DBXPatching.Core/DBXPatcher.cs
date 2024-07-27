@@ -154,13 +154,13 @@ namespace DBXPatching.Core
             if (instruction.RecordId.HasValue)
             {
                 row.ID = instruction.RecordId.Value; 
-                row[instruction.Filename, "ID"] = instruction.RecordId.Value;
+                row[instruction.Filename, row.GetDynamicMemberNames().First()] = instruction.RecordId.Value;
             }
 
             if (!string.IsNullOrEmpty(instruction.RecordIdReference))
             {
                 row.ID = _referenceIds[instruction.RecordIdReference];
-                row[instruction.Filename, "ID"] = _referenceIds[instruction.RecordIdReference];
+                row[instruction.Filename, row.GetDynamicMemberNames().First()] = _referenceIds[instruction.RecordIdReference];
             }
 
             foreach(var generateId in instruction.GenerateIds)
