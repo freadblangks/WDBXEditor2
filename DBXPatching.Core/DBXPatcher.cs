@@ -125,6 +125,10 @@ namespace DBXPatching.Core
                     return DBXPatchingOperationResult.Ok;
                 }
             }
+            if (instruction.IgnoreFailure)
+            {
+                return DBXPatchingOperationResult.Ok;
+            }
 
             return new DBXPatchingOperationResult() {
                 ResultCode = PatchingResultCode.ERROR_LOOKUP_FAILED
