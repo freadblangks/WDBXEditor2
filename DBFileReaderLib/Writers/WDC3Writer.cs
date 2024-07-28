@@ -68,14 +68,18 @@ namespace DBFileReaderLib.Writers
                 // RIGHTMOST COLUMN = REF
                 if (rightRefTables.Contains(m_writer.TableHash))
                 {
-                    if (m_writer.Flags.HasFlagExt(DB2Flags.Index) && m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length)
+                    var refFieldIndex = m_fieldMeta.Length - 1;
+                    if (m_writer.Flags.HasFlagExt(DB2Flags.Index))
                     {
-                        m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-                        continue;
+                        refFieldIndex++;
                     }
-                    else if (m_writer.LookupColumnCount > 0 && fieldIndex == m_fieldMeta.Length -1)
+                    if (m_writer.LookupColumnCount > 0 && fieldIndex == refFieldIndex)
                     {
                         m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                        if (m_writer.Flags.HasFlagExt(DB2Flags.Index))
+                        {
+                            continue;
+                        }
                     }
                 }
                 // LEFTMOST COLUMN = REF
