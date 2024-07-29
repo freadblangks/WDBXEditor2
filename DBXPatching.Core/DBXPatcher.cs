@@ -140,8 +140,17 @@ namespace DBXPatching.Core
             var result = OpenDb(instruction.Filename, out var records);
             if (result.ResultCode != PatchingResultCode.OK) { return result; }
 
-            records!.AddEmpty();
-            var row = records.Values.LastOrDefault();
+
+            DBCDRow? row;
+            if (instruction.RecordId != null && records!.Keys.Any(x => x == instruction.RecordId))
+            {
+                row = records[instruction.RecordId.Value];
+            } else
+            {
+                records!.AddEmpty(instruction.RecordId);
+                row = records.Values.LastOrDefault();
+            }
+
             if (row == null)
             {
                 return new DBXPatchingOperationResult()
@@ -149,12 +158,6 @@ namespace DBXPatching.Core
                     ResultCode = PatchingResultCode.ERROR_INSERTING_RECORD_IN_DB,
                     Messages = [$"Unable to add a record to file '{instruction.Filename}'"]
                 };
-            }
-
-            if (instruction.RecordId.HasValue)
-            {
-                row.ID = instruction.RecordId.Value; 
-                row[instruction.Filename, row.GetDynamicMemberNames().First()] = instruction.RecordId.Value;
             }
 
             if (!string.IsNullOrEmpty(instruction.RecordIdReference))

@@ -102,7 +102,7 @@ namespace DBCD
         void Save(string filename);
         void Export(string fileName);
         void Import(string fileName);
-        void AddEmpty();
+        void AddEmpty(int? id = null);
         void RemoveFromStorage(int key);
         Type GetRowType();
     }
@@ -248,7 +248,7 @@ namespace DBCD
             }
         }
 
-        public void AddEmpty()
+        public void AddEmpty(int? id = null)
         {
             var lastItem = Values.LastOrDefault();
             if (lastItem == null)
@@ -279,11 +279,11 @@ namespace DBCD
                 stringField.SetValue(toAdd, string.Empty);
             }
 
-            var id = lastItem.ID + 1;
-            var idField = typeof(T).GetField("ID");
-            idField?.SetValue(toAdd, id);
-            Add(id, new DBCDRow(id, toAdd, fieldAccessor));
-            db2Storage.Add(id, toAdd);
+            var toSetId = id ?? Values.Max(x => x.ID) + 1;
+            var idField = typeof(T).GetField(fieldNames.FirstOrDefault() ?? "ID");
+            idField?.SetValue(toAdd, toSetId);
+            Add(toSetId, new DBCDRow(toSetId, toAdd, fieldAccessor));
+            db2Storage.Add(toSetId, toAdd);
         }
 
         public void RemoveFromStorage(int key)
