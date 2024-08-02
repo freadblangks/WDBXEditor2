@@ -51,7 +51,10 @@ namespace WDBXEditor2.Controller
                     var storage = dbcd.Load(db2Path, definitionSelect.SelectedVersion, definitionSelect.SelectedLocale);
 
                     if (LoadedDBFiles.ContainsKey(db2Name))
+                    {
                         loadedFiles.Add(db2Name);
+                        LoadedDBFiles[db2Name] = storage;
+                    }
                     else if (LoadedDBFiles.TryAdd(db2Name, storage))
                         loadedFiles.Add(db2Name);
 

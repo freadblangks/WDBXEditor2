@@ -21,7 +21,9 @@ namespace DBCD.Helpers
 
             foreach (var field in fields)
             {
+                var fieldInfo = type.GetField(field);
                 var fieldExpression = Expression.Field(Expression.Convert(ownerParameter, type), field);
+
                 var conversionExpression = Expression.Convert(fieldExpression, typeof(object));
                 var accessorExpression = Expression.Lambda<Func<object, dynamic>>(conversionExpression, ownerParameter);
 
@@ -32,7 +34,16 @@ namespace DBCD.Helpers
 
         public object this[object obj, string key]
         {
-            get => _accessors[key](obj);
+            get {
+                
+                if (obj.GetType().GetField(key) != null)
+                    return _accessors[key](obj);
+                else if (int.TryParse(key[^1].ToString(), out var index))
+                {
+                    return _accessors[key.Substring(0, key.Length - 1)](obj)[index];
+                }
+                throw new Exception($"Field {key} not found on record.");
+            }
         }
 
         public bool TryGetMember(object obj, string field, out object value)

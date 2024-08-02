@@ -2,6 +2,7 @@
 using DBFileReaderLib.Readers;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace DBFileReaderLib.Writers
 {
@@ -13,7 +14,10 @@ namespace DBFileReaderLib.Writers
         public int FieldsCount { get; }
         public int RecordSize { get; }
         public int IdFieldIndex { get; }
+        public int LookupColumnCount { get; set; }
         public DB2Flags Flags { get; }
+
+        public uint TableHash { get; }
 
         #region Data
         public FieldMetaData[] Meta { get; protected set; }
@@ -29,6 +33,7 @@ namespace DBFileReaderLib.Writers
         {
             FieldCache = typeof(T).ToFieldCache<T>();
 
+            LookupColumnCount = reader.LookupColumnCount;
             FieldsCount = reader.FieldsCount;
             RecordSize = reader.RecordSize;
             IdFieldIndex = reader.IdFieldIndex;
@@ -38,6 +43,7 @@ namespace DBFileReaderLib.Writers
             CopyData = new SortedDictionary<int, int>();
             Meta = reader.Meta;
             ColumnMeta = reader.ColumnMeta;
+            TableHash = reader.TableHash;
 
             if (ColumnMeta != null)
             {
@@ -67,7 +73,7 @@ namespace DBFileReaderLib.Writers
             StringTable.Add(value, StringTableSize);
 
             int offset = StringTableSize;
-            StringTableSize += value.Length + 1;
+            StringTableSize += Encoding.UTF8.GetBytes(value).Length + 1;
             return offset;
         }
 

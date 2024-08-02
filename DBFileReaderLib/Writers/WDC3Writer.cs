@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Xml;
 
 namespace DBFileReaderLib.Writers
 {
@@ -28,7 +29,6 @@ namespace DBFileReaderLib.Writers
             m_columnMeta = m_writer.ColumnMeta;
             m_palletData = m_writer.PalletData;
             m_commonData = m_writer.CommonData;
-
             Records = new Dictionary<int, BitWriter>();
         }
 
@@ -56,11 +56,38 @@ namespace DBFileReaderLib.Writers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // reference data field
-                if (fieldIndex >= m_writer.Meta.Length)
+                // This either starts from the left or the rightmost column and I do not know which determines what.
+                // Add hashes as needed
+                uint[] rightRefTables = { 
+                    3322146344, // SpellMisc.db2
+                    604774165, // HelmetGeosetData.db2
+                    4082824155, // ItemDisplayInfoMaterialRes.db2
+                    440872980, // TextureFileData.db2
+                };
+
+                // RIGHTMOST COLUMN = REF
+                if (rightRefTables.Contains(m_writer.TableHash))
+                {
+                    var refFieldIndex = m_fieldMeta.Length - 1;
+                    if (m_writer.Flags.HasFlagExt(DB2Flags.Index))
+                    {
+                        refFieldIndex++;
+                    }
+                    if (m_writer.LookupColumnCount > 0 && fieldIndex == refFieldIndex)
+                    {
+                        m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
+                        if (m_writer.Flags.HasFlagExt(DB2Flags.Index))
+                        {
+                            continue;
+                        }
+                    }
+                }
+                // LEFTMOST COLUMN = REF
+                else if (m_writer.LookupColumnCount > 0 && fieldIndex > m_writer.IdFieldIndex && fieldIndex == (m_writer.IdFieldIndex + m_writer.LookupColumnCount))
                 {
                     m_writer.ReferenceData.Add((int)Convert.ChangeType(info.Getter(row), typeof(int)));
-                    continue;
                 }
+
 
                 if (info.IsArray)
                 {
@@ -82,7 +109,7 @@ namespace DBFileReaderLib.Writers
             if (!m_writer.Flags.HasFlagExt(DB2Flags.Sparse))
                 bitWriter.Resize(m_writer.RecordSize);
             else
-                bitWriter.ResizeToMultiple(4);
+                bitWriter.ResizeToMultiple(8);
 
             Records[id] = bitWriter;
         }
@@ -285,15 +312,22 @@ namespace DBFileReaderLib.Writers
 
             WDC3RowSerializer<T> serializer = new WDC3RowSerializer<T>(this);
             serializer.Serialize(storage);
-            serializer.GetCopyRows();
+
+            // ItemInfoDisplayMaterialRes does not do Copy rows.
+            if (!(Flags.HasFlagExt(DB2Flags.Index) && LookupColumnCount > 0))
+            {
+                serializer.GetCopyRows();
+            }
             serializer.UpdateStringOffsets(storage);
 
             RecordsCount = serializer.Records.Count - CopyData.Count;
 
             var (commonDataSize, palletDataSize, referenceDataSize) = GetDataSizes();
 
-            using (var writer = new BinaryWriter(stream))
+            using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8))
             {
+                int noSections = 1;
+
                 int minIndex = storage.Keys.Min();
                 int maxIndex = storage.Keys.Max();
 
@@ -301,7 +335,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(RecordsCount);
                 writer.Write(FieldsCount);
                 writer.Write(RecordSize);
-                writer.Write(StringTableSize);
+                writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : StringTableSize);
                 writer.Write(reader.TableHash);
                 writer.Write(reader.LayoutHash);
                 writer.Write(minIndex);
@@ -316,23 +350,47 @@ namespace DBFileReaderLib.Writers
                 writer.Write(ColumnMeta.Length * 24);           // ColumnMetaDataSize
                 writer.Write(commonDataSize);
                 writer.Write(palletDataSize);
-                writer.Write(1);                                // sections count
+                writer.Write(noSections);                       // Sections count 
 
                 if (storage.Count == 0)
                     return;
 
                 // section header
-                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + Unsafe.SizeOf<SectionHeaderWDC3>() + palletDataSize + commonDataSize;
+                int fileOffset = HeaderSize + (Meta.Length * 4) + (ColumnMeta.Length * 24) + (Unsafe.SizeOf<SectionHeaderWDC3>() * noSections) + palletDataSize + commonDataSize;
+
 
                 writer.Write(0UL);                              // TactKeyLookup
                 writer.Write(fileOffset);                       // FileOffset
                 writer.Write(RecordsCount);                     // NumRecords
-                writer.Write(StringTableSize);
+                writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? 0 : StringTableSize);
                 writer.Write(0);                                // OffsetRecordsEndOffset
-                writer.Write(RecordsCount * 4);                 // IndexDataSize
+                if (Flags.HasFlagExt(DB2Flags.Index))
+                {
+                    writer.Write(RecordsCount * 4);                 // IndexDataSize
+                }
+                else
+                {
+                    writer.Write(0);                                 // IndexDataSize
+                }
                 writer.Write(referenceDataSize);                // ParentLookupDataSize
                 writer.Write(Flags.HasFlagExt(DB2Flags.Sparse) ? RecordsCount : 0); // OffsetMapIDCount
                 writer.Write(CopyData.Count);                   // CopyTableCount
+
+                // DEBUG
+                // Write 0's for corect offset
+                for (int i = 0; i < (noSections - 1); i++)
+                {
+                    writer.Write(0UL);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                    writer.Write(0);
+                }
+
 
                 // field meta
                 writer.WriteArray(Meta);
@@ -387,6 +445,7 @@ namespace DBFileReaderLib.Writers
                         writer.WriteCString(str.Key);
                 }
 
+
                 // set the OffsetRecordsEndOffset
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -397,15 +456,29 @@ namespace DBFileReaderLib.Writers
                 }
 
                 // index table
+
+                // TODO: CHECK IF INDEX IS ALWAYS COMPLETE OR ALSO WITHOUT COPYDATA
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
+                {
+                    if (LookupColumnCount == 0)
+                        writer.WriteArray(serializer.Records.Keys.Except(CopyData.Keys).ToArray());
+                    else
+                        writer.WriteArray(serializer.Records.Keys.ToArray());
+                }
 
                 // copy table
-                foreach (var copyRecord in CopyData)
+                IEnumerable<KeyValuePair<int, int>> copyData = CopyData;
+                // Not sure if this matters but AlliedRace seems to be sorted. Whereas CopyLine.db2 and ItemSparse does not appear to be sorted.
+                if (!Flags.HasFlagExt(DB2Flags.Sparse))
+                {
+                    copyData = CopyData.OrderBy(x => x.Value);
+                }
+                foreach (var copyRecord in copyData)
                 {
                     writer.Write(copyRecord.Key);
                     writer.Write(copyRecord.Value);
                 }
+
 
                 // sparse data
                 if (Flags.HasFlagExt(DB2Flags.Sparse))
@@ -418,10 +491,26 @@ namespace DBFileReaderLib.Writers
                     writer.Write(ReferenceData.Min());
                     writer.Write(ReferenceData.Max());
 
+                    int refDataWrote = 0;
                     for (int i = 0; i < ReferenceData.Count; i++)
                     {
-                        writer.Write(ReferenceData[i]);
-                        writer.Write(i);
+                        // Based on observation in SkillRaceClassInfo.db2, copy records do not have their reference copied.
+                        //var recordId = serializer.Records.Keys.ElementAt(i);
+                        //if (CopyData.Keys.Contains(recordId))
+                        //{
+                        //    var copyRecordId = CopyData[recordId];
+                        //    var copyIndex = serializer.Records.Keys.ToList().IndexOf(copyRecordId);
+                        //    writer.Write(ReferenceData[copyIndex]);
+                        //    writer.Write(copyIndex - CopyData.Values.ToList().IndexOf(copyRecordId));
+                        //    refDataWrote++;
+                        //    continue;
+                        //}
+
+                        if (i < ReferenceData.Count)
+                        {
+                            writer.Write(ReferenceData[i]);
+                            writer.Write(i - refDataWrote);
+                        }
                     }
                 }
 

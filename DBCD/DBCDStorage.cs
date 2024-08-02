@@ -1,10 +1,12 @@
+using CsvHelper;
+using CsvHelper.Configuration;
 using DBCD.Helpers;
 
 using DBFileReaderLib;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Dynamic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -38,10 +40,26 @@ namespace DBCD
         {
             set
             {
+
                 var newRaw = (object)raw;
                 var type = newRaw.GetType().GetField(fieldname);
-                type.SetValue(newRaw, Convert.ChangeType(value, type.FieldType));
-                raw = (dynamic)newRaw;
+                if (type == null)
+                {
+                    var index = 0;
+                    var n = 1;
+                    while(int.TryParse(fieldname[^1].ToString(), out var indexN))
+                    {
+                        fieldname = fieldname.Substring(0, fieldname.Length-1);
+                        index += n * indexN;
+                        n *= 10;
+                    }
+                    type = newRaw.GetType().GetField(fieldname);
+                    ((Array)type.GetValue(newRaw)).SetValue(Convert.ChangeType(value, type.FieldType.GetElementType()), index);
+                } else
+                {
+                    type.SetValue(newRaw, Convert.ChangeType(value, type.FieldType));
+                    raw = (dynamic)newRaw;
+                }
             }
         }
 
@@ -59,6 +77,8 @@ namespace DBCD
         {
             return fieldAccessor.FieldNames;
         }
+
+        public dynamic GetRaw() {  return raw; }   
     }
 
     public class DynamicKeyValuePair<T>
@@ -80,6 +100,11 @@ namespace DBCD
         DBCDInfo GetDBCDInfo();
         Dictionary<ulong, int> GetEncryptedSections();
         void Save(string filename);
+        void Export(string fileName);
+        void Import(string fileName);
+        void AddEmpty(int? id = null);
+        void RemoveFromStorage(int key);
+        Type GetRowType();
     }
 
     public class DBCDStorage<T> : Dictionary<int, DBCDRow>, IDBCDStorage where T : class, new()
@@ -98,10 +123,10 @@ namespace DBCD
 
         public DBCDStorage(DBParser parser, Storage<T> storage, DBCDInfo info) : base(new Dictionary<int, DBCDRow>())
         {
-            this.info       = info;
-            fieldAccessor   = new FieldAccessor(typeof(T), info.availableColumns);
-            this.parser     = parser;
-            db2Storage      = storage;
+            this.info = info;
+            fieldAccessor = new FieldAccessor(typeof(T), info.availableColumns);
+            this.parser = parser;
+            db2Storage = storage;
 
             foreach (var record in db2Storage)
                 Add(record.Key, new DBCDRow(record.Key, record.Value, fieldAccessor));
@@ -113,11 +138,163 @@ namespace DBCD
             while (enumerator.MoveNext())
                 yield return new DynamicKeyValuePair<int>(enumerator.Current.Key, enumerator.Current.Value);
         }
-        
+
         public Dictionary<ulong, int> GetEncryptedSections() => parser.GetEncryptedSections();
 
         public DBCDInfo GetDBCDInfo() => info;
 
         public void Save(string filename) => db2Storage?.Save(filename);
+
+        public void Import(string fileName)
+        {
+            using (var reader = new StreamReader(fileName))
+            using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                MemberTypes = MemberTypes.Fields,
+                HasHeaderRecord = true,
+
+            }))
+            {
+                csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
+                //csv.Read();
+                //csv.ReadHeader();
+                var records = csv.GetRecords<T>();
+                db2Storage.Clear();
+                Clear();
+                foreach (var record in records)
+                {
+                    var fields = typeof(T).GetFields();
+                    var arrayFields = fields.Where(x => x.FieldType.IsArray);
+                    foreach (var arrayField in arrayFields)
+                    {
+                        var count = csv.HeaderRecord.Where(x => x.StartsWith(arrayField.Name)).ToList().Count();
+                        var rowRecords = new string[count];
+                        Array.Copy(csv.Parser.Record, Array.IndexOf(csv.HeaderRecord, arrayField.Name + 0), rowRecords, 0, count);
+                        arrayField.SetValue(record, _arrayConverters[arrayField.FieldType](count, rowRecords));
+                    }
+                    var id = (int)fieldAccessor[record, "ID"];
+                    Add(id, new DBCDRow(id, record, fieldAccessor));
+                    db2Storage.Add(id, record);
+                }
+            }
+        }
+
+        private static Dictionary<Type, Func<int, string[], object>> _arrayConverters = new Dictionary<Type, Func<int, string[], object>>()
+        {
+            [typeof(ulong[])] = (size, records) => ConvertArray<ulong>(size, records),
+            [typeof(long[])] = (size, records) => ConvertArray<long>(size, records),
+            [typeof(float[])] = (size, records) => ConvertArray<float>(size, records),
+            [typeof(int[])] = (size, records) => ConvertArray<int>(size, records),
+            [typeof(uint[])] = (size, records) => ConvertArray<uint>(size, records),
+            [typeof(ulong[])] = (size, records) => ConvertArray<ulong>(size, records),
+            [typeof(short[])] = (size, records) => ConvertArray<short>(size, records),
+            [typeof(ushort[])] = (size, records) => ConvertArray<ushort>(size, records),
+            [typeof(byte[])] = (size, records) => ConvertArray<byte>(size, records),
+            [typeof(sbyte[])] = (size, records) => ConvertArray<sbyte>(size, records),
+            [typeof(string[])] = (size, records) => ConvertArray<string>(size, records),
+        };
+
+        private static object ConvertArray<TConvert>(int size, string[] records)
+        {
+            var result = new TConvert[size];
+            for (var i = 0; i < size; i++)
+            {
+                result[i] = (TConvert)Convert.ChangeType(records[i], typeof(TConvert));
+            }
+            return result;
+        }
+
+
+        public void Export(string filename)
+        {
+            var firstItem = Values.FirstOrDefault();
+            if (firstItem == null)
+            {
+                return;
+            }
+
+            var columnNames = firstItem.GetDynamicMemberNames()
+                .SelectMany(x =>
+                {
+                    var columnData = firstItem[x];
+                    if (columnData.GetType().IsArray)
+                    {
+                        var result = new string[((Array)columnData).Length];
+                        for (int i = 0; i < result.Length; i++)
+                        {
+                            result[i] = x + i;
+                        }
+                        return result;
+                    }
+                    return new[] { x };
+                });
+            using (var fileStream = File.Create(filename))
+            using (var writer = new StreamWriter(fileStream))
+            {
+                writer.WriteLine(string.Join(",", columnNames));
+                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    MemberTypes = MemberTypes.Fields,
+                    HasHeaderRecord = false,
+                    ShouldQuote = (args) =>
+                    {
+                        return args.FieldType == typeof(string);
+                    }
+                }))
+                {
+                    csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
+                    csv.WriteRecords(db2Storage.Values);
+                }
+            }
+        }
+
+        public void AddEmpty(int? id = null)
+        {
+            var lastItem = Values.LastOrDefault();
+            if (lastItem == null)
+            {
+                return;
+            }
+            var fieldNames = lastItem.GetDynamicMemberNames();
+            var toAdd = new T();
+            var fields = typeof(T).GetFields();
+
+            // Array Fields need to be initialized to fill their length
+            var arrayFields = fields.Where(x => x.FieldType.IsArray);
+            foreach (var arrayField in arrayFields)
+            {
+                var count = ((Array)arrayField.GetValue(lastItem.GetRaw())).Length;
+                var rowRecords = new string[count];
+                for(var i = 0; i < count; i++)
+                {
+                    rowRecords[i] = Activator.CreateInstance(arrayField.FieldType.GetElementType()).ToString();
+                }
+                arrayField.SetValue(toAdd, _arrayConverters[arrayField.FieldType](count, rowRecords));
+            }
+
+            // String Fields need to be initialized to empty string rather than null;
+            var stringFields = fields.Where(x => x.FieldType == typeof(string));
+            foreach(var stringField in stringFields)
+            {
+                stringField.SetValue(toAdd, string.Empty);
+            }
+
+            var toSetId = id ?? Values.Max(x => x.ID) + 1;
+            var idField = typeof(T).GetField(fieldNames.FirstOrDefault() ?? "ID");
+            idField?.SetValue(toAdd, toSetId);
+            Add(toSetId, new DBCDRow(toSetId, toAdd, fieldAccessor));
+            db2Storage.Add(toSetId, toAdd);
+        }
+
+        public void RemoveFromStorage(int key)
+        {
+            base.Remove(key);
+            db2Storage.Remove(key);
+        }
+
+        public Type GetRowType()
+        {
+            return typeof(T);
+        }
     }
 }
