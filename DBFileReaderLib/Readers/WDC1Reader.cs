@@ -34,7 +34,7 @@ namespace DBFileReaderLib.Readers
             m_dataOffset = Data.Offset;
             m_dataPosition = Data.Position;
 
-            m_fieldMeta = reader.Meta;
+            m_fieldMeta = reader.field_structure_data;
             m_columnMeta = reader.ColumnMeta;
             m_palletData = reader.PalletData;
             m_commonData = reader.CommonData;
@@ -95,7 +95,7 @@ namespace DBFileReaderLib.Readers
                 object value = null;
                 int fieldIndex = i - indexFieldOffSet;
 
-                if (fieldIndex >= m_reader.Meta.Length)
+                if (fieldIndex >= m_reader.field_structure_data.Length)
                 {
                     info.Setter(entry, Convert.ChangeType(m_refID, info.Field.FieldType));
                     continue;
@@ -248,7 +248,7 @@ namespace DBFileReaderLib.Readers
                     return;
 
                 // field meta data
-                Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+                field_structure_data = reader.ReadArray<FieldMetaData>(FieldsCount);
 
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -276,13 +276,13 @@ namespace DBFileReaderLib.Readers
 
                     int sparseCount = MaxIndex - MinIndex + 1;
 
-                    SparseEntries = new List<SparseEntry>(sparseCount);
+                    offset_map_Entries = new List<offset_map_entry>(sparseCount);
                     CopyData = new Dictionary<int, int>(sparseCount);
                     var sparseIdLookup = new Dictionary<uint, int>(sparseCount);
 
                     for (int i = 0; i < sparseCount; i++)
                     {
-                        SparseEntry sparse = reader.Read<SparseEntry>();
+                        offset_map_entry sparse = reader.Read<offset_map_entry>();
                         if (sparse.Offset == 0 || sparse.Size == 0)
                             continue;
 
@@ -292,14 +292,14 @@ namespace DBFileReaderLib.Readers
                         }
                         else
                         {
-                            SparseEntries.Add(sparse);
+                            offset_map_Entries.Add(sparse);
                             sparseIdLookup.Add(sparse.Offset, MinIndex + i);
                         }
                     }
                 }
 
                 // index data
-                IndexData = reader.ReadArray<int>(indexDataSize / 4);
+                id_list_data = reader.ReadArray<int>(indexDataSize / 4);
 
                 // duplicate rows data
                 if (CopyData == null)
@@ -356,7 +356,7 @@ namespace DBFileReaderLib.Readers
                     if (Flags.HasFlagExt(DB2Flags.Sparse))
                     {
                         bitReader.Position = position;
-                        position += SparseEntries[i].Size * 8;
+                        position += offset_map_Entries[i].Size * 8;
                     }
                     else
                     {
@@ -365,7 +365,7 @@ namespace DBFileReaderLib.Readers
 
                     refData.Entries.TryGetValue(i, out int refId);
 
-                    IDBRow rec = new WDC1Row(this, bitReader, indexDataSize != 0 ? IndexData[i] : -1, refId, i);
+                    IDBRow rec = new WDC1Row(this, bitReader, indexDataSize != 0 ? id_list_data[i] : -1, refId, i);
                     _Records.Add(i, rec);
                 }
             }

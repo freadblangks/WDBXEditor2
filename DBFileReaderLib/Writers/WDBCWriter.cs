@@ -127,7 +127,7 @@ namespace DBFileReaderLib.Writers
                 foreach (var record in serializer.Records)
                     record.Value.CopyTo(writer.BaseStream);
 
-                foreach (var str in StringTable)
+                foreach (var str in StringTableStingAsKeyPosAsValue)
                     writer.WriteCString(str.Key);
             }
         }

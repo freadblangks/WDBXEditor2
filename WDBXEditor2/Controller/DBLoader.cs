@@ -50,10 +50,10 @@ namespace WDBXEditor2.Controller
                     stopWatch = new Stopwatch();
                     var storage = dbcd.Load(db2Path, definitionSelect.SelectedVersion, definitionSelect.SelectedLocale);
 
-                    if (LoadedDBFiles.ContainsKey(db2Name))
-                        loadedFiles.Add(db2Name);
-                    else if (LoadedDBFiles.TryAdd(db2Name, storage))
-                        loadedFiles.Add(db2Name);
+                    if (LoadedDBFiles.ContainsKey(db2Path))
+                        loadedFiles.Add(db2Path);
+                    else if (LoadedDBFiles.TryAdd(db2Path, storage))
+                        loadedFiles.Add(db2Path);
 
                     stopWatch.Stop();
                     Console.WriteLine($"Loading File: {db2Name} Elapsed Time: {stopWatch.Elapsed}");
