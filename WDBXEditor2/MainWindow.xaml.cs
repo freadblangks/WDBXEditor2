@@ -196,7 +196,7 @@ namespace WDBXEditor2
                     var colName = e.Column.Header.ToString();
                     try
                     {
-                        dbcRow[colName] = ConvertHelper.ConvertValue(dbcRow.GetUnderlyingType(), colName, newVal.Text);
+                        DBCDRowHelper.SetDBCRowColumn(dbcRow, colName, newVal.Text);
                         if (colName == dbcRow.GetDynamicMemberNames().FirstOrDefault())
                         {
                             OpenedDB2Storage.Remove(dbcRow.ID);
@@ -206,9 +206,9 @@ namespace WDBXEditor2
                     }
                     catch(Exception exc)
                     {
-                        newVal.Text = dbcRow[colName].ToString();
+                        newVal.Text = DBCDRowHelper.GetDBCRowColumn(dbcRow, colName).ToString();
                         var exceptionWindow = new ExceptionWindow();
-                        var fieldType = ConvertHelper.GetFieldType(dbcRow.GetUnderlyingType(), colName);
+                        var fieldType = DBCDRowHelper.GetFieldType(dbcRow, colName);
 
                         exceptionWindow.DisplayException(exc.InnerException ?? exc, $"An error occured setting this value for this cell. This is likely due to an invalid value for conversion to '{fieldType.Name}':");
                         exceptionWindow.Show();
@@ -407,10 +407,10 @@ namespace WDBXEditor2
                     {
                         if (field.FieldType.IsArray)
                         {
-                            var count = csv.HeaderRecord.Where(x => x.StartsWith(field.Name)).ToList().Count();
+                            var count = csv.HeaderRecord.Where(x => x.StartsWith(field.Name) && int.TryParse(x.Substring(field.Name.Length), out int _)).ToList().Count();
                             var rowRecords = new string[count];
                             Array.Copy(csv.Parser.Record, Array.IndexOf(csv.HeaderRecord, field.Name + 0), rowRecords, 0, count);
-                            row[field.Name] = ConvertHelper.ConvertArray(field.FieldType, count, rowRecords);
+                            row[field.Name] = DBCDRowHelper.ConvertArray(field.FieldType, count, rowRecords);
                         } else
                         {
                             row[field.Name] = field.GetValue(record);
