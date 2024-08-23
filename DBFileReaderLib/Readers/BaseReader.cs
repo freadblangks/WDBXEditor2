@@ -14,6 +14,7 @@ namespace DBFileReaderLib.Readers
         public int StringTableSize { get; protected set; }
         public uint TableHash { get; protected set; }
         public uint LayoutHash { get; protected set; }
+        public int SectionsCount { get; protected set; }
         public int MinIndex { get; protected set; }
         public int MaxIndex { get; protected set; }
         public int IdFieldIndex { get; protected set; }
@@ -21,20 +22,27 @@ namespace DBFileReaderLib.Readers
         public int Locale { get; protected set; }
         public uint Build { get; protected set; }
         public int PackedDataOffset { get; protected set; }
+        public int lookupColumnCount { get; protected set; }
+        public int field_info_size { get; protected set; }
+        public int commonDataSize { get; protected set; }
+        public int palletDataSize { get; protected set; }
+        public List<SectionHeaderWDC3> SectionHeaders { get; protected set; }
 
+        public byte[] NoParseRecordsData { get; protected set; }
         #region Data
 
-        public FieldMetaData[] Meta;
-        public int[] IndexData;
+        public FieldMetaData[] field_structure_data;
+        public int[] id_list_data;
         public ColumnMetaData[] ColumnMeta;
         public Value32[][] PalletData;
+        public ReferenceData refData;
         public Dictionary<int, Value32>[] CommonData;
         public Dictionary<long, string> StringTable;
 
         protected byte[] RecordsData;
         protected Dictionary<int, int> CopyData { get; set; }
         protected Dictionary<int, IDBRow> _Records { get; set; } = new Dictionary<int, IDBRow>();
-        protected List<SparseEntry> SparseEntries { get; set; }
+        protected List<offset_map_entry> offset_map_Entries { get; set; }
         public int[] ForeignKeyData { get; set; }
 
         #endregion
@@ -68,16 +76,17 @@ namespace DBFileReaderLib.Readers
         }
         public void Clear()
         {
-            IndexData = null;
+            id_list_data = null;
             PalletData = null;
             ColumnMeta = null;
             RecordsData = null;
+            refData = null;
             ForeignKeyData = null;
             CommonData = null;
 
             _Records?.Clear();
             StringTable?.Clear();
-            SparseEntries?.Clear();
+            offset_map_Entries?.Clear();
             CopyData?.Clear();
         }
 

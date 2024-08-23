@@ -34,15 +34,23 @@
                 <MenuItem x:Name="Exit" Header="Exit" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="_Edit"/>
-            <MenuItem Header="_Export"/>
+            <MenuItem Header="_Export">
+                <MenuItem x:Name="ExportData" Header="ExportData" Click="ExportData_Click"/>
+                <MenuItem x:Name="ExportInfo" Header="ExportInfo" Click="ExportInfo_Click"/>
+            </MenuItem>
             <MenuItem Header="_Tools"/>
         </Menu>
         <Grid Grid.Row="1" Grid.ColumnSpan="2">
-            <DataGrid x:Name="DB2DataGrid" Margin="5,5,5,5" Background="#FF939393" CanUserResizeRows="False"
+            <DataGrid x:Name="DB2DataGrid" Margin="5,5,294,5" Background="#FF939393" CanUserResizeRows="False"
                       CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                       ItemsSource="{Binding null, IsAsync=True}" EnableColumnVirtualization="True" EnableRowVirtualization="True"
                       CellEditEnding="DB2DataGrid_CellEditEnding" />
+            <DataGrid x:Name="DB2InfoDataGrid" Margin="0,5,10,5" Background="#FF939393" CanUserResizeRows="False"
+                CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
+                VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                ItemsSource="{Binding null, IsAsync=True}" EnableColumnVirtualization="True" EnableRowVirtualization="True"
+                HorizontalAlignment="Right" Width="279" />
         </Grid>
         <Grid Grid.Row="2" Grid.Column="0">
             <GroupBox Header="Files" Margin="5,0,5,10">

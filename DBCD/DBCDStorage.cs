@@ -76,7 +76,7 @@ namespace DBCD
     public interface IDBCDStorage : IEnumerable<DynamicKeyValuePair<int>>, IDictionary<int, DBCDRow>
     {
         string[] AvailableColumns { get; }
-
+        DBParser parser { get; }
         DBCDInfo GetDBCDInfo();
         Dictionary<ulong, int> GetEncryptedSections();
         void Save(string filename);
@@ -90,6 +90,7 @@ namespace DBCD
         private readonly DBParser parser;
 
         string[] IDBCDStorage.AvailableColumns => info.availableColumns;
+        DBParser IDBCDStorage.parser =>  parser;
         public override string ToString() => $"{info.tableName}";
 
         public DBCDStorage(Stream stream, DBCDInfo info) : this(new DBParser(stream), info) { }

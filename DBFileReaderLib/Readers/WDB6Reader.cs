@@ -30,7 +30,7 @@ namespace DBFileReaderLib.Readers
             m_dataOffset = Data.Offset;
             m_dataPosition = Data.Position;
 
-            m_fieldMeta = reader.Meta;
+            m_fieldMeta = reader.field_structure_data;
             m_commonData = reader.CommonData;
 
             Id = id;
@@ -89,7 +89,7 @@ namespace DBFileReaderLib.Readers
                 int fieldIndex = i - indexFieldOffSet;
 
                 // 0x2 SecondaryKey
-                if (fieldIndex >= m_reader.Meta.Length)
+                if (fieldIndex >= m_reader.field_structure_data.Length)
                 {
                     info.Setter(entry, Convert.ChangeType(m_reader.ForeignKeyData[Id - m_reader.MinIndex], info.Field.FieldType));
                     continue;
@@ -218,7 +218,7 @@ namespace DBFileReaderLib.Readers
                     return;
 
                 // field meta data
-                Meta = reader.ReadArray<FieldMetaData>(FieldsCount);
+                field_structure_data = reader.ReadArray<FieldMetaData>(FieldsCount);
 
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
@@ -242,13 +242,13 @@ namespace DBFileReaderLib.Readers
 
                     int sparseCount = MaxIndex - MinIndex + 1;
 
-                    SparseEntries = new List<SparseEntry>(sparseCount);
+                    offset_map_Entries = new List<offset_map_entry>(sparseCount);
                     CopyData = new Dictionary<int, int>(sparseCount);
                     var sparseIdLookup = new Dictionary<uint, int>(sparseCount);
 
                     for (int i = 0; i < sparseCount; i++)
                     {
-                        SparseEntry sparse = reader.Read<SparseEntry>();
+                        offset_map_entry sparse = reader.Read<offset_map_entry>();
                         if (sparse.Offset == 0 || sparse.Size == 0)
                             continue;
 
@@ -258,7 +258,7 @@ namespace DBFileReaderLib.Readers
                         }
                         else
                         {
-                            SparseEntries.Add(sparse);
+                            offset_map_Entries.Add(sparse);
                             sparseIdLookup.Add(sparse.Offset, MinIndex + i);
                         }
                     }
@@ -270,7 +270,7 @@ namespace DBFileReaderLib.Readers
 
                 // index table
                 if (Flags.HasFlagExt(DB2Flags.Index))
-                    IndexData = reader.ReadArray<int>(RecordsCount);
+                    id_list_data = reader.ReadArray<int>(RecordsCount);
 
                 // duplicate rows data
                 if (CopyData == null)
@@ -281,7 +281,7 @@ namespace DBFileReaderLib.Readers
 
                 if (commonDataSize > 0)
                 {
-                    Array.Resize(ref Meta, totalFieldCount);
+                    Array.Resize(ref field_structure_data, totalFieldCount);
 
                     int fieldCount = reader.ReadInt32();
                     CommonData = new Dictionary<int, Value32>[fieldCount];
@@ -302,10 +302,10 @@ namespace DBFileReaderLib.Readers
                         {
                             CommonDataTypes[i - FieldsCount] = type;
 
-                            Meta[i] = new FieldMetaData()
+                            field_structure_data[i] = new FieldMetaData()
                             {
                                 Bits = CommonTypeBits[type],
-                                Offset = (short)(Meta[i - 1].Offset + ((32 - Meta[i - 1].Bits) >> 3))
+                                Offset = (short)(field_structure_data[i - 1].Offset + ((32 - field_structure_data[i - 1].Bits) >> 3))
                             };
                         }
 
@@ -331,14 +331,14 @@ namespace DBFileReaderLib.Readers
                     if (Flags.HasFlagExt(DB2Flags.Sparse))
                     {
                         bitReader.Position = position;
-                        position += SparseEntries[i].Size * 8;
+                        position += offset_map_Entries[i].Size * 8;
                     }
                     else
                     {
                         bitReader.Offset = i * RecordSize;
                     }
 
-                    IDBRow rec = new WDB6Row(this, bitReader, Flags.HasFlagExt(DB2Flags.Index) ? IndexData[i] : -1, i);
+                    IDBRow rec = new WDB6Row(this, bitReader, Flags.HasFlagExt(DB2Flags.Index) ? id_list_data[i] : -1, i);
                     _Records.Add(i, rec);
                 }
             }

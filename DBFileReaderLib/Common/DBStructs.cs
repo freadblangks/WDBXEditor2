@@ -146,7 +146,7 @@ namespace DBFileReaderLib.Common
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    struct SparseEntry
+    struct offset_map_entry
     {
         public uint Offset;
         public ushort Size;
@@ -169,7 +169,7 @@ namespace DBFileReaderLib.Common
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    struct SectionHeaderWDC3 : IEncryptableDatabaseSection
+    public struct SectionHeaderWDC3 : IEncryptableDatabaseSection
     {
         public ulong TactKeyLookup;
         public int FileOffset;

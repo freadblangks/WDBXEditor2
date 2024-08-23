@@ -18,7 +18,7 @@ namespace DBFileReaderLib.Writers
         public WDB5RowSerializer(BaseWriter<T> writer)
         {
             m_writer = writer;
-            m_fieldMeta = m_writer.Meta;
+            m_fieldMeta = m_writer.field_structure_data;
 
             Records = new Dictionary<int, BitWriter>();
         }
@@ -169,7 +169,7 @@ namespace DBFileReaderLib.Writers
                     return;
 
                 // field meta
-                writer.WriteArray(Meta);
+                writer.WriteArray(field_structure_data);
 
                 // record data
                 uint recordsOffset = (uint)writer.BaseStream.Position;
@@ -181,7 +181,7 @@ namespace DBFileReaderLib.Writers
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in StringTable)
+                    foreach (var str in StringTableStingAsKeyPosAsValue)
                         writer.WriteCString(str.Key);
                 }
 

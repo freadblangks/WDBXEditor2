@@ -16,11 +16,11 @@ namespace DBFileReaderLib.Writers
         public DB2Flags Flags { get; }
 
         #region Data
-        public FieldMetaData[] Meta { get; protected set; }
+        public FieldMetaData[] field_structure_data { get; protected set; }
         public ColumnMetaData[] ColumnMeta { get; protected set; }
         public List<Value32[]>[] PalletData { get; protected set; }
         public Dictionary<int, Value32>[] CommonData { get; protected set; }
-        public Dictionary<string, int> StringTable { get; protected set; }
+        public Dictionary<string, int> StringTableStingAsKeyPosAsValue { get; protected set; }
         public SortedDictionary<int, int> CopyData { get; protected set; }
         public List<int> ReferenceData { get; protected set; }
         #endregion
@@ -34,9 +34,9 @@ namespace DBFileReaderLib.Writers
             IdFieldIndex = reader.IdFieldIndex;
             Flags = reader.Flags;
 
-            StringTable = new Dictionary<string, int>();
+            StringTableStingAsKeyPosAsValue = new Dictionary<string, int>();
             CopyData = new SortedDictionary<int, int>();
-            Meta = reader.Meta;
+            field_structure_data = reader.field_structure_data;
             ColumnMeta = reader.ColumnMeta;
 
             if (ColumnMeta != null)
@@ -61,13 +61,20 @@ namespace DBFileReaderLib.Writers
 
         public int InternString(string value)
         {
-            if (StringTable.TryGetValue(value, out int index))
+            if (StringTableStingAsKeyPosAsValue.TryGetValue(value, out int index))
                 return index;
 
-            StringTable.Add(value, StringTableSize);
+            StringTableStingAsKeyPosAsValue.Add(value, StringTableSize);
+
+            int strlen = System.Text.Encoding.UTF8.GetBytes(value).Length;
+
+            if (value == "")//there was a 0x00 on each string table 0x00 0x00 string1 0x00 string2 0x00
+            {
+                strlen = 1;
+            }
 
             int offset = StringTableSize;
-            StringTableSize += value.Length + 1;
+            StringTableSize += strlen + 1;
             return offset;
         }
 

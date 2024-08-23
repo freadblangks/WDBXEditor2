@@ -18,7 +18,7 @@ namespace DBFileReaderLib.Writers
         public WDB6RowSerializer(BaseWriter<T> writer)
         {
             m_writer = writer;
-            m_fieldMeta = m_writer.Meta;
+            m_fieldMeta = m_writer.field_structure_data;
 
             Records = new Dictionary<int, BitWriter>();
         }
@@ -146,7 +146,7 @@ namespace DBFileReaderLib.Writers
             // always 2 empties
             StringTableSize++;
 
-            CommonData = new Dictionary<int, Value32>[Meta.Length - FieldsCount];
+            CommonData = new Dictionary<int, Value32>[field_structure_data.Length - FieldsCount];
             Array.ForEach(CommonData, x => x = new Dictionary<int, Value32>());
 
             WDB6RowSerializer<T> serializer = new WDB6RowSerializer<T>(this);
@@ -174,7 +174,7 @@ namespace DBFileReaderLib.Writers
                 writer.Write(copyTableSize);
                 writer.Write((ushort)Flags);
                 writer.Write((ushort)IdFieldIndex);
-                writer.Write(Meta.Length); // totalFieldCount
+                writer.Write(field_structure_data.Length); // totalFieldCount
                 writer.Write(0); // commonDataSize
 
                 if (storage.Count == 0)
@@ -182,7 +182,7 @@ namespace DBFileReaderLib.Writers
 
                 // field meta
                 for (int i = 0; i < FieldsCount; i++)
-                    writer.Write(Meta[i]);
+                    writer.Write(field_structure_data[i]);
 
                 // record data
                 uint recordsOffset = (uint)writer.BaseStream.Position;
@@ -194,7 +194,7 @@ namespace DBFileReaderLib.Writers
                 if (!Flags.HasFlagExt(DB2Flags.Sparse))
                 {
                     writer.WriteCString("");
-                    foreach (var str in StringTable)
+                    foreach (var str in StringTableStingAsKeyPosAsValue)
                         writer.WriteCString(str.Key);
                 }
 
@@ -235,7 +235,7 @@ namespace DBFileReaderLib.Writers
                 {
                     long startPos = writer.BaseStream.Position;
 
-                    writer.Write(Meta.Length - FieldsCount);
+                    writer.Write(field_structure_data.Length - FieldsCount);
 
                     for (int i = 0; i < CommonData.Length; i++)
                     {
