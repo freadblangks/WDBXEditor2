@@ -6,16 +6,22 @@
         mc:Ignorable="d" Title="WDBXEditor2" Height="640" Width="960"
         MinWidth="960" MinHeight="640" Icon="/Assets/icon.ico">
     <Window.CommandBindings>
-        <CommandBinding Command="Open" Executed="Open_Click"/>
-        <CommandBinding Command="Save" Executed="Save_Click"/>
-        <CommandBinding Command="SaveAs" Executed="SaveAs_Click"/>
-        <CommandBinding Command="Close" Executed="Close_Click"/>
+        <CommandBinding Command="Open" Executed="Open_Click" CanExecute="CommandBinding_CanExecute"/>
+        <CommandBinding Command="Save" Executed="Save_Click" CanExecute="CommandBinding_CanExecute"/>
+        <CommandBinding Command="SaveAs" Executed="SaveAs_Click" CanExecute="CommandBinding_CanExecute"/>
+        <CommandBinding Command="Close" Executed="Close_Click" CanExecute="CommandBinding_CanExecute"/>
+        <CommandBinding Command="Copy" Executed="Copy_Click" CanExecute="CommandBinding_CanExecute" />
+        <CommandBinding Command="Paste" Executed="Paste_Click" CanExecute="CommandBinding_CanExecute" />
+        <CommandBinding Command="Find" Executed="Find_Click" CanExecute="CommandBinding_CanExecute" />
     </Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Ctrl" Command="Open"/>
         <KeyBinding Key="S" Modifiers="Ctrl" Command="Save"/>
         <KeyBinding Key="S" Modifiers="Ctrl+Shift" Command="SaveAs"/>
         <KeyBinding Key="W" Modifiers="Ctrl" Command="Close"/>
+        <KeyBinding Key="C" Modifiers="Ctrl" Command="Copy" />
+        <KeyBinding Key="V" Modifiers="Ctrl" Command="Paste" />
+        <KeyBinding Key="F" Modifiers="Ctrl" Command="Find" />
     </Window.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
@@ -23,7 +29,12 @@
             <RowDefinition />
             <RowDefinition Height="215" />
         </Grid.RowDefinitions>
-        <Menu IsMainMenu="True" Grid.Row="0" Grid.ColumnSpan="2">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="500"/>
+        </Grid.ColumnDefinitions>
+
+        <Menu x:Name="mainMenu" IsMainMenu="True" Grid.Row="0" Grid.ColumnSpan="2">
             <MenuItem Header="_File">
                 <MenuItem x:Name="Open" Header="Open..." Click="Open_Click" InputGestureText="Ctrl+O"/>
                 <Separator />
@@ -37,41 +48,80 @@
                 <MenuItem Header="_Set Column Value" Click="SetColumn_Click"></MenuItem>
                 <MenuItem Header="_Replace Column Value" Click="ReplaceColumn_Click"></MenuItem>
                 <MenuItem Header="Set/Unset _Bit in Column" Click="SetBitColumn_Click"></MenuItem>
-                <MenuItem Header="Set Dependent Column" Click="SetDependentColumn_Click"></MenuItem>
+                <MenuItem Header="Set _Dependent Column" Click="SetDependentColumn_Click"></MenuItem>
+                <Separator />
+                <MenuItem Header="_Copy" Click="Copy_Click" InputGestureText="Ctrl+C" />
+                <MenuItem Header="_Paste" Click="Paste_Click" InputGestureText="Ctrl+V" />
+                <Separator />
+                <MenuItem Header="_Find" Click="Find_Click" InputGestureText="Ctrl+F" />
             </MenuItem>
-            <MenuItem Header="_Export" Click="Export_Click"/>
-            <MenuItem Header="_Import" Click="Import_Click"/>
+            <MenuItem Header="E_xport">
+                <MenuItem Header="To _Csv" Click="ExportCsv_Click" />
+                <MenuItem Header="To _Sql" Click="ExportSql_Click" />
+            </MenuItem>
+            <MenuItem Header="_Import">
+                <MenuItem Header="From _Csv" Click="ImportCsv_Click" />
+                <MenuItem Header="From _Sql" Click="ImportSql_Click" />
+            </MenuItem>
         </Menu>
         <Grid Grid.Row="1" Grid.ColumnSpan="2">
             <DataGrid x:Name="DB2DataGrid" Margin="5,5,5,5" Background="#FF939393" CanUserResizeRows="False"
                       CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                      ItemsSource="{Binding null, IsAsync=True}" EnableColumnVirtualization="True" EnableRowVirtualization="True"
-                      CellEditEnding="DB2DataGrid_CellEditEnding" InitializingNewItem="DB2DataGrid_InitializingNewItem"
-                      />
+                      ItemsSource="{Binding null, IsAsync=True}" 
+                      EnableColumnVirtualization="True" EnableRowVirtualization="True"
+                      CanUserAddRows="True" CanUserDeleteRows="True"
+                      CurrentCellChanged="DB2DataGrid_CurrentCellChanged"
+                      CopyingRowClipboardContent="DB2DataGrid_CopyingRowClipboardContent"
+             />
         </Grid>
-        <Grid Grid.Row="2" Grid.Column="0">
-            <GroupBox Header="Files" Margin="5,0,5,10">
+        <GroupBox Grid.Row="2" Header="Files" Margin="5,0,5,10">
+            <Grid Grid.Column="0">
+                <ListBox x:Name="OpenDBItems" Margin="0,0,5,0" SelectionChanged="OpenDBItems_SelectionChanged" />
+            </Grid>
+        </GroupBox>
+
+
+        <Grid Grid.Row="2" Grid.Column="1" Margin="5,0,5,10">
+            <Grid.RowDefinitions>
+                <RowDefinition />
+                <RowDefinition Height="20"/>
+                <RowDefinition Height="20"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+            </Grid.ColumnDefinitions>
+            <GroupBox Header="Statistics" Margin="0,0,5,0"  Grid.ColumnSpan="2" >
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="350"/>
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition />
                     </Grid.ColumnDefinitions>
-                    <Grid Grid.Column="0">
-                        <ListBox x:Name="OpenDBItems" Margin="0,0,5,0" SelectionChanged="OpenDBItems_SelectionChanged" />
-                    </Grid>
-                    <Grid Grid.Column="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition />
-                            <RowDefinition Height="20"/>
-                        </Grid.RowDefinitions>
-                        <GroupBox Grid.Row="0" Header="Filter" Margin="0,-10,0,5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="24" />
+                        <RowDefinition Height="24" />
+                        <RowDefinition Height="24" />
+                        <RowDefinition Height="24" />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <Grid.Resources>
+                        <Style TargetType="TextBox">
+                            <Setter Property="Margin" Value="0,2,0,2" />
+                        </Style>
+                    </Grid.Resources>
 
-                        </GroupBox>
-                        <ProgressBar x:Name="ProgressBar" Grid.Row="1" Value="0" />
-                    </Grid>
+                    <Label Grid.Row="0" Content="Current File"/>
+                    <TextBox x:Name="tbCurrentFile" Grid.Row="0" Grid.Column="1" IsReadOnly="True" />
+                    <Label Grid.Row="1" Content="LayoutHash"/>
+                    <TextBox x:Name="tbCurrentDefinition" Grid.Row="1" Grid.Column="1" IsReadOnly="True" />
+                    <Label Grid.Row="2" Content="DB2 Stats"/>
+                    <TextBox x:Name="tbCurrentDb2Stats" Grid.Row="2" Grid.Column="1" IsReadOnly="True" />
+                    <Label Grid.Row="3" Content="Column Info"/>
+                    <TextBox x:Name="tbColumnInfo" Grid.Row="3" Grid.Column="1" IsReadOnly="True" />
+                    <Button x:Name="ClearFilter" Content="Clear Filter" Grid.Row="4" Grid.ColumnSpan="2" MaxWidth="100" MaxHeight="24" Click="ClearFilter_Click" />
                 </Grid>
             </GroupBox>
+            <TextBlock x:Name="txtOperation" Grid.Row="1" Grid.ColumnSpan="2" Text="" />
+            <ProgressBar x:Name="ProgressBar" Grid.Row="2"  Grid.ColumnSpan="2" Value="0" />
         </Grid>
     </Grid>
 </Window>

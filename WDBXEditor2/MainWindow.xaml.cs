@@ -1,21 +1,22 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
-using DBCD;
-using DBCD.IO;
+﻿using DBCD;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using WDBXEditor2.Controller;
-using WDBXEditor2.Helpers;
-using WDBXEditor2.Misc;
+using WDBXEditor2.Core.Operations;
 using WDBXEditor2.Views;
+using WDBXEditor2.Core;
+using WDBXEditor2.Operations;
+using System.Threading.Tasks;
+using DBCD.IO;
+using System.Collections.ObjectModel;
+using WDBXEditor2.Misc;
 
 namespace WDBXEditor2
 {
@@ -24,23 +25,43 @@ namespace WDBXEditor2
     /// </summary>
     public partial class MainWindow : Window
     {
-        private readonly DBLoader dbLoader = new();
+        private DBLoader dbLoader;
         public string CurrentOpenDB2 { get; set; } = string.Empty;
 
         public Dictionary<string, string> OpenedDB2Paths { get; set; } = new Dictionary<string, string>();
+        public ObservableCollection<DBCDRowProxy> DataGridSource { get; set; } = new();
+
+        public ColumnInfo SelectedColumnInfo { get; set; } = new();
+
+        public Filter Filter { get; set; } = new();
         public IDBCDStorage OpenedDB2Storage { get; set; }
 
-        private List<DBCDRow> _currentOrderedRows = new();
+        private readonly IServiceProvider _serviceProvider;
+        private IMediator _mediator;
+        private IProgressReporter _progressReporter;
 
-        public MainWindow()
+
+        private int _copiedRowId = -1;
+
+        public MainWindow(IServiceProvider serviceProvider)
         {
             InitializeComponent();
-            SettingStorage.Initialize();
+            _serviceProvider = serviceProvider;
+            _progressReporter = _serviceProvider.GetService<IProgressReporter>();
+            _mediator = _serviceProvider.GetService<IMediator>();
+            dbLoader = ActivatorUtilities.CreateInstance<DBLoader>(_serviceProvider);
+
 
             Exit.Click += (e, o) => Close();
 
             Title = $"WDBXEditor2  -  {Constants.Version}";
         }
+
+        public override void BeginInit()
+        {
+            base.BeginInit();
+        }
+
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
@@ -55,11 +76,37 @@ namespace WDBXEditor2
             {
                 var files = openFileDialog.FileNames;
 
-                foreach (string loadedDB in dbLoader.LoadFiles(files))
+                DefinitionSelect definitionSelect = ActivatorUtilities.CreateInstance<DefinitionSelect>(_serviceProvider);
+                definitionSelect.SetDefinitionFromVersionDefinitions(dbLoader.GetVersionDefinitionsForDB2(dbLoader.GetDb2Name(files[0])));
+                definitionSelect.ShowDialog();
+
+                if (definitionSelect.IsCanceled)
                 {
-                    OpenedDB2Paths[loadedDB] = files.First(x => Path.GetFileNameWithoutExtension(x) == loadedDB);
-                    OpenDBItems.Items.Add(loadedDB);
+                    return;
                 }
+
+                Locale selectedLocale = definitionSelect.SelectedLocale;
+                string build = definitionSelect.SelectedVersion;
+                txtOperation.Text = "Parsing DB2 files...";
+                ProgressBar.IsIndeterminate = true;
+
+                Task.Run(() =>
+                {
+                    var loadedDBs = dbLoader.LoadFiles(files, build, selectedLocale);
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        foreach (string loadedDB in loadedDBs)
+                        {
+                            OpenedDB2Paths[loadedDB] = files.First(x => Path.GetFileNameWithoutExtension(x) == loadedDB);
+                            OpenDBItems.Items.Add(loadedDB);
+                        }
+
+                        ProgressBar.IsIndeterminate = false;
+                        txtOperation.Text = "";
+                    });
+                });
+
             }
         }
 
@@ -67,7 +114,7 @@ namespace WDBXEditor2
         {
             // Clear DataGrid
             DB2DataGrid.Columns.Clear();
-            DB2DataGrid.ItemsSource = new List<string>();
+            DB2DataGrid.ItemsSource = Array.Empty<int>();
 
             CurrentOpenDB2 = (string)OpenDBItems.SelectedItem;
             if (CurrentOpenDB2 == null)
@@ -77,62 +124,14 @@ namespace WDBXEditor2
             {
                 Title = $"WDBXEditor2  -  {Constants.Version}  -  {CurrentOpenDB2}";
                 OpenedDB2Storage = storage;
-                _currentOrderedRows = storage.ToDictionary().OrderBy(x => x.Key).Select(x => x.Value).ToList();
+
+                tbCurrentDb2Stats.Text = $"{storage.Count} rows, {DBCDHelper.GetColumnNames(storage).Length} columns";
+                tbCurrentFile.Text = CurrentOpenDB2 + ".db2";
+                tbCurrentDefinition.Text = storage.LayoutHash.ToString("X8");
+                tbColumnInfo.Text = string.Empty;
+                _copiedRowId = -1;
+
                 ReloadDataView();
-            }
-
-        }
-
-        /// <summary>
-        /// Populate the DataView with the DB2 Columns.
-        /// </summary>
-        private void PopulateColumns(IDBCDStorage storage, ref DataTable data)
-        {
-            var firstItem = storage.Values.FirstOrDefault();
-            if (firstItem == null)
-            {
-                return;
-            }
-
-            foreach (string columnName in firstItem.GetDynamicMemberNames())
-            {
-                var columnValue = firstItem[columnName];
-
-                if (columnValue.GetType().IsArray)
-                {
-                    Array columnValueArray = (Array)columnValue;
-                    for (var i = 0; i < columnValueArray.Length; ++i)
-                        data.Columns.Add(columnName + i);
-                }
-                else
-                    data.Columns.Add(columnName);
-            }
-        }
-
-        /// <summary>
-        /// Populate the DataView with the DB2 Data.
-        /// </summary>
-        private void PopulateDataView(IDBCDStorage storage, ref DataTable data)
-        {
-            foreach (var rowData in storage.Values)
-            {
-                var row = data.NewRow();
-
-                foreach (string columnName in rowData.GetDynamicMemberNames())
-                {
-                    var columnValue = rowData[columnName];
-
-                    if (columnValue.GetType().IsArray)
-                    {
-                        Array columnValueArray = (Array)columnValue;
-                        for (var i = 0; i < columnValueArray.Length; ++i)
-                            row[columnName + i] = columnValueArray.GetValue(i);
-                    }
-                    else
-                        row[columnName] = columnValue;
-                }
-
-                data.Rows.Add(row);
             }
         }
 
@@ -148,19 +147,27 @@ namespace WDBXEditor2
 
             // Clear DataGrid
             DB2DataGrid.Columns.Clear();
+            DB2DataGrid.ItemsSource = Array.Empty<int>();
 
+            _copiedRowId = -1;
             CurrentOpenDB2 = string.Empty;
             OpenedDB2Storage = null;
-            _currentOrderedRows = null;
+
+            tbCurrentDb2Stats.Text = string.Empty;
+            tbCurrentFile.Text = string.Empty;
+            tbCurrentDefinition.Text = string.Empty;
+            tbColumnInfo.Text = string.Empty;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
             if (!string.IsNullOrEmpty(CurrentOpenDB2))
             {
-                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(OpenedDB2Paths[CurrentOpenDB2]);
-                dbLoader.ReloadFile(OpenedDB2Paths[CurrentOpenDB2]);
-                ReloadDataView();
+                RunOperationAsync(new SaveDb2ToFileOperation()
+                {
+                    Storage = OpenedDB2Storage,
+                    FileName = OpenedDB2Paths[CurrentOpenDB2]
+                });
             }
         }
 
@@ -178,7 +185,11 @@ namespace WDBXEditor2
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                dbLoader.LoadedDBFiles[CurrentOpenDB2].Save(saveFileDialog.FileName);
+                RunOperationAsync(new SaveDb2ToFileOperation()
+                {
+                    Storage = OpenedDB2Storage,
+                    FileName = saveFileDialog.FileName
+                });
             }
         }
 
@@ -187,43 +198,7 @@ namespace WDBXEditor2
             Application.Current.Shutdown();
         }
 
-        private void DB2DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            if (e.EditAction == DataGridEditAction.Commit)
-            {
-                if (e.Column != null)
-                {
-                    var rowIdx = e.Row.GetIndex();
-                    var newVal = e.EditingElement as TextBox;
-
-                    var dbcRow = _currentOrderedRows.ElementAt(rowIdx);
-                    var colName = e.Column.Header.ToString();
-                    try
-                    {
-                        DBCDRowHelper.SetDBCRowColumn(dbcRow, colName, newVal.Text);
-                        if (colName == dbcRow.GetDynamicMemberNames().FirstOrDefault())
-                        {
-                            OpenedDB2Storage.Remove(dbcRow.ID);
-                            dbcRow.ID = Convert.ToInt32(dbcRow[colName]);
-                            OpenedDB2Storage.Add(dbcRow.ID, dbcRow);
-                        }
-                    }
-                    catch(Exception exc)
-                    {
-                        newVal.Text = DBCDRowHelper.GetDBCRowColumn(dbcRow, colName).ToString();
-                        var exceptionWindow = new ExceptionWindow();
-                        var fieldType = DBCDRowHelper.GetFieldType(dbcRow, colName);
-
-                        exceptionWindow.DisplayException(exc.InnerException ?? exc, $"An error occured setting this value for this cell. This is likely due to an invalid value for conversion to '{fieldType.Name}':");
-                        exceptionWindow.Show();
-                    }
-
-                    Console.WriteLine($"RowIdx: {rowIdx} Text: {newVal.Text}");
-                }
-            }
-        }
-
-        private void Export_Click(object sender, RoutedEventArgs e)
+        private void ExportCsv_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(CurrentOpenDB2))
                 return;
@@ -237,11 +212,15 @@ namespace WDBXEditor2
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                ExportToCsv(saveFileDialog.FileName);
+                RunOperationAsync(new ExportToCsvOperation()
+                {
+                    FileName = saveFileDialog.FileName,
+                    Storage = OpenedDB2Storage,
+                });
             }
         }
 
-        private void Import_Click(object sender, RoutedEventArgs e)
+        private void ImportCsv_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(CurrentOpenDB2))
                 return;
@@ -256,173 +235,170 @@ namespace WDBXEditor2
             if (openFileDialog.ShowDialog() == true)
             {
                 var fileName = openFileDialog.FileNames[0];
-                ImportCsv(fileName);
-                ReloadDataView();
+                RunOperationAsync(new ImportFromCsvOperation()
+                {
+                    FileName = fileName,
+                    Storage = OpenedDB2Storage
+                }, true);
             }
+        }
+
+        private void ExportSql_Click(object sender, RoutedEventArgs e)
+        {
+            OpenWindow<ExportSqlWindow>();
+        }
+
+        private void ImportSql_Click(object sender, RoutedEventArgs e)
+        {
+            OpenWindow<ImportSqlWindow>();
         }
 
         private void SetColumn_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(CurrentOpenDB2))
-                return;
-            new SetColumnWindow(this).Show();
+            OpenWindow<SetColumnWindow>();
         }
 
         private void ReplaceColumn_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(CurrentOpenDB2))
-                return;
-
-            new ReplaceColumnWindow(this).Show();
+            OpenWindow<ReplaceColumnWindow>();
         }
 
         private void SetBitColumn_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(CurrentOpenDB2))
-                return;
-
-            new SetFlagWindow(this).Show();
+            OpenWindow<SetFlagWindow>();
         }
 
         private void SetDependentColumn_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(CurrentOpenDB2))
-                return;
+            OpenWindow<SetDependentColumnWindow>();
+        }
 
-            new SetDependentColumnWindow(this).Show();
+        private void Copy_Click(object sender, RoutedEventArgs e)
+        {
+            _copiedRowId = (DB2DataGrid.SelectedItem as DBCDRowProxy)?.RowData?.ID ?? -1;
+        }
+
+        private void Paste_Click(object sender, RoutedEventArgs e)
+        {
+            if (_copiedRowId == -1)
+            {
+                return;
+            }
+
+            if (!OpenedDB2Storage.ContainsKey(_copiedRowId))
+            {
+                _copiedRowId = -1;
+                return;
+            }
+
+            var rowToCopy = OpenedDB2Storage[_copiedRowId];
+            var newRow = DBCDHelper.ConstructNewRow(OpenedDB2Storage);
+
+            var columns = DBCDHelper.GetColumnNames(OpenedDB2Storage);
+            var idField = DBCDHelper.GetIdFieldName(OpenedDB2Storage);
+            foreach(var col in columns)
+            {
+                if (col != idField)
+                {
+                    var copyVal = DBCDHelper.GetDBCRowColumn(rowToCopy, col);
+                    DBCDHelper.SetDBCRowColumn(newRow, col, copyVal);
+                }
+            }
+            OpenedDB2Storage[newRow.ID] = newRow;
+            var proxy = new DBCDRowProxy(newRow);
+            DataGridSource.Add(proxy);
+            DB2DataGrid.ScrollIntoView(proxy);
+            DB2DataGrid.SelectedItem = proxy;
+        }
+        private void Find_Click(object sender, RoutedEventArgs e)
+        {
+            OpenWindow<FindColumnWindow>();
+        }
+
+        private void ClearFilter_Click(object sender, RoutedEventArgs e)
+        {
+            Filter = new();
+            ReloadDataView();
         }
 
         public void ReloadDataView()
         {
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-
-            var data = new DataTable();
-            PopulateColumns(OpenedDB2Storage, ref data);
-            if (OpenedDB2Storage.Values.Count > 0)
-                PopulateDataView(OpenedDB2Storage, ref data);
-
-            stopWatch.Stop();
-            Console.WriteLine($"Populating Grid: {CurrentOpenDB2} Elapsed Time: {stopWatch.Elapsed}");
-            data.RowDeleting += Data_RowDeleted;
-            DB2DataGrid.ItemsSource = data.DefaultView;
+            RunOperationAsync(new ReloadDataViewOperation());
         }
 
-        private void Data_RowDeleted(object sender, DataRowChangeEventArgs e)
+        private void OpenWindow<T>() where T : Window
         {
-            var rowId = int.Parse(e.Row[0].ToString());
-            _currentOrderedRows.Remove(OpenedDB2Storage[rowId]);
-            OpenedDB2Storage.Remove(rowId);
+            if (string.IsNullOrEmpty(CurrentOpenDB2))
+                return;
+
+            ActivatorUtilities.CreateInstance<T>(_serviceProvider).Show();
         }
 
-        private void DB2DataGrid_InitializingNewItem(object sender, InitializingNewItemEventArgs e)
+        public void BlockUI()
         {
-            Debug.WriteLine(e.NewItem);
-
-            var id = OpenedDB2Storage.Keys.Count > 0 ? OpenedDB2Storage.Keys.Max() + 1 : 1;
-            var rowData = OpenedDB2Storage.ConstructRow(id);
-            rowData[rowData.GetDynamicMemberNames().First()] = id;
-            rowData.ID = id;
-
-            OpenedDB2Storage[id] = rowData;
-            _currentOrderedRows.Insert(_currentOrderedRows.Count, rowData);
-
-            foreach (string columnName in rowData.GetDynamicMemberNames())
+            Dispatcher.Invoke(() =>
             {
-                var columnValue = rowData[columnName];
-
-                if (columnValue.GetType().IsArray)
-                {
-                    Array columnValueArray = (Array)columnValue;
-                    for (var i = 0; i < columnValueArray.Length; ++i)
-                        
-                        ((DataRowView)e.NewItem)[columnName + i] = columnValueArray.GetValue(i);
-                }
-                else
-                    ((DataRowView)e.NewItem)[columnName] = columnValue;
-            }
+                mainMenu.IsEnabled = false;
+                DB2DataGrid.IsReadOnly = true;
+                OpenDBItems.IsEnabled = false;
+            });
         }
 
-        private void ExportToCsv(string filename)
+        public void UnblockUI()
         {
-            var firstItem = OpenedDB2Storage.Values.FirstOrDefault();
-            if (firstItem == null)
+            Dispatcher.Invoke(() =>
+            {
+                mainMenu.IsEnabled = true;
+                DB2DataGrid.IsReadOnly = false;
+                OpenDBItems.IsEnabled = true;
+            });
+        }
+
+        public void RunOperationAsync(IRequest request, bool reload = false)
+        {
+            if (request is ProgressReportingRequest reporter)
+            {
+                reporter.ProgressReporter = _progressReporter;
+            }
+            BlockUI();
+            Task.Run(() => 
+            {
+                _mediator.Send(request).ContinueWith((_) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        txtOperation.Text = "";
+                        ProgressBar.Value = 0;
+                        ProgressBar.IsIndeterminate = false;
+                        if (reload)
+                        {
+                            ReloadDataView();
+                        }
+                        UnblockUI();
+                    });
+                });
+            });
+        }
+
+        private void CommandBinding_CanExecute(object sender, System.Windows.Input.CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = mainMenu.IsEnabled;
+        }
+        private void DB2DataGrid_CurrentCellChanged(object sender, EventArgs e)
+        {
+            var cell = (sender as DataGrid).CurrentCell;
+            if (!cell.IsValid)
             {
                 return;
             }
-
-            var columnNames = firstItem.GetDynamicMemberNames()
-                .SelectMany(x =>
-                {
-                    var columnData = firstItem[x];
-                    if (columnData.GetType().IsArray)
-                    {
-                        var result = new string[((Array)columnData).Length];
-                        for (int i = 0; i < result.Length; i++)
-                        {
-                            result[i] = x + i;
-                        }
-                        return result;
-                    }
-                    return new[] { x };
-                });
-            using (var fileStream = File.Create(filename))
-            using (var writer = new StreamWriter(fileStream))
-            {
-                writer.WriteLine(string.Join(",", columnNames));
-                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
-                {
-                    MemberTypes = CsvHelper.Configuration.MemberTypes.Fields,
-                    HasHeaderRecord = false,
-                    ShouldQuote = (args) =>
-                    {
-                        return args.FieldType == typeof(string);
-                    }
-                }))
-                {
-                    csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
-                    csv.WriteRecords(OpenedDB2Storage.Values);
-                }
-            }
+            var columnName = cell.Column.Header.ToString();
+            SelectedColumnInfo = DBCDHelper.GetColumnInfo(DBCDHelper.GetUnderlyingType(OpenedDB2Storage), columnName);
+            tbColumnInfo.Text = SelectedColumnInfo.ToString(); 
         }
 
-        private void ImportCsv(string fileName)
+        private void DB2DataGrid_CopyingRowClipboardContent(object sender, DataGridRowClipboardEventArgs e)
         {
-            using (var reader = new StreamReader(fileName))
-            using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                MemberTypes = CsvHelper.Configuration.MemberTypes.Fields,
-                HasHeaderRecord = true,
-
-            }))
-            {
-                var underlyingType = OpenedDB2Storage.GetType().GenericTypeArguments[0];
-
-                csv.Context.TypeConverterCache.RemoveConverter<byte[]>();
-                var records = csv.GetRecords(underlyingType);
-                OpenedDB2Storage.Clear();
-                foreach (var record in records)
-                {
-                    var id = (int)underlyingType.GetField(OpenedDB2Storage.AvailableColumns.First()).GetValue(record);
-                    var row = OpenedDB2Storage.ConstructRow(id);
-                    var fields = underlyingType.GetFields();
-                    var arrayFields = fields.Where(x => x.FieldType.IsArray);
-                    foreach (var field in fields)
-                    {
-                        if (field.FieldType.IsArray)
-                        {
-                            var count = csv.HeaderRecord.Where(x => x.StartsWith(field.Name) && int.TryParse(x.Substring(field.Name.Length), out int _)).ToList().Count();
-                            var rowRecords = new string[count];
-                            Array.Copy(csv.Parser.Record, Array.IndexOf(csv.HeaderRecord, field.Name + 0), rowRecords, 0, count);
-                            row[field.Name] = DBCDRowHelper.ConvertArray(field.FieldType, count, rowRecords);
-                        } else
-                        {
-                            row[field.Name] = field.GetValue(record);
-                        }
-                    }
-                    OpenedDB2Storage.Add(id, row);
-                }
-            }
+            _copiedRowId = (DB2DataGrid.SelectedItem as DBCDRowProxy)?.RowData?.ID ?? -1;
         }
     }
 }

@@ -1,12 +1,15 @@
 ﻿using DBCD;
 using DBCD.Providers;
 using DBDefsLib;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Windows;
+using WDBXEditor2.Misc;
 using WDBXEditor2.Views;
 using static DBDefsLib.Structs;
 
@@ -15,51 +18,41 @@ namespace WDBXEditor2.Controller
     public class DBLoader
     {
         public ConcurrentDictionary<string, IDBCDStorage> LoadedDBFiles;
-        private Dictionary<string, (string BuildVersion, Locale Locale)> LoadedDBFileVersions;
 
-        private readonly IDBDProvider dbdProvider;
+        private readonly IDBDProvider _dbdProvider;
+        private readonly IServiceProvider _serviceProvider;
 
-        public DBLoader()
+        public DBLoader(IServiceProvider serviceProvider)
         {
-            dbdProvider = new GithubDBDProvider();
+            _serviceProvider = serviceProvider;
+            _dbdProvider = serviceProvider.GetService<IDBDProvider>();
             LoadedDBFiles = new ConcurrentDictionary<string, IDBCDStorage>();
-            LoadedDBFileVersions = new();
         }
 
-        public string[] LoadFiles(string[] files)
+        public string[] LoadFiles(string[] files, string build, Locale locale)
         {
             var loadedFiles = new List<string>();
             Stopwatch stopWatch = null;
 
             foreach (string db2Path in files)
             {
-                string db2Name = Path.GetFileNameWithoutExtension(db2Path);
+                string db2Name = GetDb2Name(db2Path);
 
                 try
                 {
-                    DefinitionSelect definitionSelect = new();
-                    definitionSelect.SetDB2Name(db2Name);
-                    definitionSelect.SetDefinitionFromVersionDefinitions(GetVersionDefinitionsForDB2(db2Name));
-                    definitionSelect.ShowDialog();
-
-                    var dbcd = new DBCD.DBCD(new FilesystemDBCProvider(Path.GetDirectoryName(db2Path)), dbdProvider);
-
-                    if (definitionSelect.IsCanceled)
-                        continue;
-
+                    var dbcd = new DBCD.DBCD(new FilesystemDBCProvider(Path.GetDirectoryName(db2Path)), _dbdProvider);
                     stopWatch = new Stopwatch();
-                    var storage = dbcd.Load(db2Name, definitionSelect.SelectedVersion, definitionSelect.SelectedLocale);
+                    stopWatch.Start();
+                    var storage = dbcd.Load(db2Name, build, locale);
 
                     if (LoadedDBFiles.ContainsKey(db2Name))
                     {
                         loadedFiles.Add(db2Name);
                         LoadedDBFiles[db2Name] = storage;
-                        LoadedDBFileVersions[db2Name] = (definitionSelect.SelectedVersion, definitionSelect.SelectedLocale);
                     }
                     else if (LoadedDBFiles.TryAdd(db2Name, storage))
                     {
                         loadedFiles.Add(db2Name);
-                        LoadedDBFileVersions.Add(db2Name, (definitionSelect.SelectedVersion, definitionSelect.SelectedLocale));
                     }
 
                     stopWatch.Stop();
@@ -89,24 +82,14 @@ namespace WDBXEditor2.Controller
             return loadedFiles.ToArray();
         }
 
-        public void ReloadFile(string db2Path)
+        public string GetDb2Name(string filePath)
         {
-            string db2Name = Path.GetFileNameWithoutExtension(db2Path);
-            if (!LoadedDBFiles.ContainsKey(db2Name))
-            {
-                throw new ArgumentException("Can not reload file that was not previously loaded. Provided filename: ", db2Path);
-            }
-            var versionInfo = LoadedDBFileVersions[db2Name];
-
-            var dbcd = new DBCD.DBCD(new FilesystemDBCProvider(Path.GetDirectoryName(db2Path)), dbdProvider);
-            var storage = dbcd.Load(db2Name, versionInfo.BuildVersion, versionInfo.Locale);
-
-            LoadedDBFiles[db2Name] = storage;
+            return Path.GetFileNameWithoutExtension(filePath);
         }
 
         public VersionDefinitions[] GetVersionDefinitionsForDB2(string db2File)
         {
-            var dbdStream = dbdProvider.StreamForTableName(db2File, null);
+            var dbdStream = _dbdProvider.StreamForTableName(db2File, null);
             var dbdReader = new DBDReader();
             var databaseDefinition = dbdReader.Read(dbdStream);
 
