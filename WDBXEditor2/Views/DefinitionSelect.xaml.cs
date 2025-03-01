@@ -1,5 +1,6 @@
 ﻿using DBCD;
 using DBDefsLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -71,13 +72,15 @@ namespace WDBXEditor2.Views
 
         public void SetDefinitionFromVersionDefinitions(VersionDefinitions[] versionDefinitions)
         {
+            List<DefinitionSelectData> parsedDefinitions = new List<DefinitionSelectData>();
+
             foreach (VersionDefinitions versionDefinition in versionDefinitions)
             {
                 if (versionDefinition.buildRanges.Length > 0)
                 {
                     foreach (BuildRange buildRange in versionDefinition.buildRanges)
                     {
-                        definitionSelectData.Add(new DefinitionSelectData()
+                        parsedDefinitions.Add(new DefinitionSelectData()
                         {
                             DisplayName = string.Format("{0} - {1}", buildRange.minBuild, buildRange.maxBuild),
                             Version = buildRange.maxBuild.ToString()
@@ -88,7 +91,7 @@ namespace WDBXEditor2.Views
                 {
                     foreach (Build build in versionDefinition.builds)
                     {
-                        definitionSelectData.Add(new DefinitionSelectData()
+                        parsedDefinitions.Add(new DefinitionSelectData()
                         {
                             DisplayName = build.ToString(),
                             Version = build.ToString()
@@ -97,8 +100,19 @@ namespace WDBXEditor2.Views
                 }
             }
 
-            DefinitionSelectList.ItemsSource = definitionSelectData
-                .OrderByDescending(e => e.Version)
+            DefinitionSelectList.ItemsSource = parsedDefinitions
+                .OrderByDescending(e =>
+                {
+                    if (string.IsNullOrEmpty(e.Version))
+                        return new Version(0, 0);
+
+                    // For ranges, use the first part (minimum version)
+                    string cleanVersion = e.Version.Split('-')[0].Trim();
+                    if (Version.TryParse(cleanVersion, out Version parsedVersion))
+                        return parsedVersion;
+
+                    return new Version(0, 0);
+                })
                 .Prepend(new DefinitionSelectData() { DisplayName = "Autoselect", Version = null })
                 .ToList();
         }
