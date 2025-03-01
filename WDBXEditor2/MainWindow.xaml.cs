@@ -135,6 +135,7 @@ namespace WDBXEditor2
                 tbColumnInfo.Text = string.Empty;
                 _copiedRowId = -1;
 
+                Filter = new();
                 ReloadDataView();
             }
         }
