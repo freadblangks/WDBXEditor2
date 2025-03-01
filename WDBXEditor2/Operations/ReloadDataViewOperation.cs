@@ -62,7 +62,18 @@ namespace WDBXEditor2.Operations
                     Source = collection
                 };
                 viewSource.Filter += ViewSource_Filter;
+
+                // Handle column generation to enable sorting
+                _mainWindow.DB2DataGrid.AutoGeneratingColumn += (s, e) =>
+                {
+                    e.Column.CanUserSort = true;
+                };
+
                 _mainWindow.DB2DataGrid.ItemsSource = viewSource.View;
+
+                // Reattach the sorting event handler
+                _mainWindow.DB2DataGrid.Sorting -= _mainWindow.DB2DataGrid_Sorting;
+                _mainWindow.DB2DataGrid.Sorting += _mainWindow.DB2DataGrid_Sorting;
             });
             UpdateDb2Stats();
 
