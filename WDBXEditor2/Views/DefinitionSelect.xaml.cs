@@ -100,12 +100,11 @@ namespace WDBXEditor2.Views
 
             DefinitionSelectList.ItemsSource = definitionSelectData
                 .OrderByDescending(e => {
-                    string version = e.Version;
-                    if (string.IsNullOrEmpty(version))
+                    if (string.IsNullOrEmpty(e.Version))
                         return new Version(0, 0);
 
                     // For ranges, use the first part (minimum version)
-                    string cleanVersion = version.Split('-')[0].Trim();
+                    string cleanVersion = e.Version.Split('-')[0].Trim();
                     if (Version.TryParse(cleanVersion, out Version parsedVersion))
                         return parsedVersion;
 
