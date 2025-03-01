@@ -41,7 +41,7 @@
                 <MenuItem x:Name="Save" Header="Save" Click="Save_Click" InputGestureText="Ctrl+S"/>
                 <MenuItem x:Name="SaveAs" Header="Save As..." Click="SaveAs_Click" InputGestureText="Ctrl+Shift+S"/>
                 <Separator />
-                <MenuItem x:Name="CloseDB" Header="Close DB2" Click="Close_Click" InputGestureText="Ctrl+W"/>
+                <MenuItem x:Name="CloseDB" Header="Close" Click="Close_Click" InputGestureText="Ctrl+W"/>
                 <MenuItem x:Name="Exit" Header="Exit" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="_Edit">
@@ -66,7 +66,7 @@
         </Menu>
         <Grid Grid.Row="1" Grid.ColumnSpan="2">
             <DataGrid x:Name="DB2DataGrid" Margin="5,5,5,5" Background="#FF939393" CanUserResizeRows="False"
-                      CanUserReorderColumns="False" CanUserSortColumns="False" AutoGenerateColumns="True"
+                      CanUserReorderColumns="False" CanUserSortColumns="True" AutoGenerateColumns="True"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                       ItemsSource="{Binding null, IsAsync=True}" 
                       EnableColumnVirtualization="True" EnableRowVirtualization="True"
@@ -113,7 +113,7 @@
                     <TextBox x:Name="tbCurrentFile" Grid.Row="0" Grid.Column="1" IsReadOnly="True" />
                     <Label Grid.Row="1" Content="LayoutHash"/>
                     <TextBox x:Name="tbCurrentDefinition" Grid.Row="1" Grid.Column="1" IsReadOnly="True" />
-                    <Label Grid.Row="2" Content="DB2 Stats"/>
+                    <Label Grid.Row="2" Content="DB Stats"/>
                     <TextBox x:Name="tbCurrentDb2Stats" Grid.Row="2" Grid.Column="1" IsReadOnly="True" />
                     <Label Grid.Row="3" Content="Column Info"/>
                     <TextBox x:Name="tbColumnInfo" Grid.Row="3" Grid.Column="1" IsReadOnly="True" />

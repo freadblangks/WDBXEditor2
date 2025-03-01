@@ -24,7 +24,7 @@ namespace WDBXEditor2.Core.Operations
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            request.ProgressReporter?.SetOperationName("Save DB2 - Writing data...");
+            request.ProgressReporter?.SetOperationName("Save DB - Writing data...");
             request.ProgressReporter?.SetIsIndeterminate(true);
 
             var tempFile = Path.GetTempFileName();
@@ -33,7 +33,7 @@ namespace WDBXEditor2.Core.Operations
             File.Move(tempFile, request.FileName, true);
 
             stopWatch.Stop();
-            Console.WriteLine($"Saving DB2. Elapsed Time: {stopWatch.Elapsed}");
+            Console.WriteLine($"Saving DB. Elapsed Time: {stopWatch.Elapsed}");
 
             return Task.CompletedTask;
         }

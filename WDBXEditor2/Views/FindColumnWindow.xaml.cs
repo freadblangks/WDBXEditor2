@@ -15,7 +15,8 @@ namespace WDBXEditor2.Views
             _mainWindow = mainWindow;
             ddlColumnName.ItemsSource = mainWindow.DB2DataGrid.Columns.Select(x => x.Header.ToString()).ToList();
             ddlColumnName.SelectedIndex = 0;
-            if (!string.IsNullOrEmpty(mainWindow.SelectedColumnInfo.Name))
+            if (!string.IsNullOrEmpty(mainWindow.SelectedColumnInfo.Name) &&
+                ddlColumnName.ItemsSource.OfType<string>().Contains(mainWindow.SelectedColumnInfo.Name))
             {
                 ddlColumnName.SelectedItem = mainWindow.SelectedColumnInfo.Name;
 
@@ -23,6 +24,11 @@ namespace WDBXEditor2.Views
                 {
                     txtValue.Text = DBCDHelper.GetDBCRowColumn(proxy.RowData, mainWindow.SelectedColumnInfo.Name).ToString();
                 }
+            }
+            else
+            {
+                // Clear the text value if column doesn't exist
+                txtValue.Text = string.Empty;
             }
         }
 

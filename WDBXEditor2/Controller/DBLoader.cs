@@ -22,11 +22,14 @@ namespace WDBXEditor2.Controller
         private readonly IDBDProvider _dbdProvider;
         private readonly IServiceProvider _serviceProvider;
 
+        public ConcurrentDictionary<string, string> FileExtensions;
+
         public DBLoader(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
             _dbdProvider = serviceProvider.GetService<IDBDProvider>();
             LoadedDBFiles = new ConcurrentDictionary<string, IDBCDStorage>();
+            FileExtensions = new ConcurrentDictionary<string, string>();
         }
 
         public string[] LoadFiles(string[] files, string build, Locale locale)
@@ -37,6 +40,7 @@ namespace WDBXEditor2.Controller
             foreach (string db2Path in files)
             {
                 string db2Name = GetDb2Name(db2Path);
+                string extension = Path.GetExtension(db2Path).ToLowerInvariant();
 
                 try
                 {
@@ -49,10 +53,12 @@ namespace WDBXEditor2.Controller
                     {
                         loadedFiles.Add(db2Name);
                         LoadedDBFiles[db2Name] = storage;
+                        FileExtensions[db2Name] = extension;
                     }
                     else if (LoadedDBFiles.TryAdd(db2Name, storage))
                     {
                         loadedFiles.Add(db2Name);
+                        FileExtensions.TryAdd(db2Name, extension);
                     }
 
                     stopWatch.Stop();
@@ -84,7 +90,7 @@ namespace WDBXEditor2.Controller
 
         public string GetDb2Name(string filePath)
         {
-            return Path.GetFileNameWithoutExtension(filePath);
+                return Path.GetFileNameWithoutExtension(filePath);
         }
 
         public VersionDefinitions[] GetVersionDefinitionsForDB2(string db2File)

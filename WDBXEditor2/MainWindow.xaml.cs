@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 using DBCD.IO;
 using System.Collections.ObjectModel;
 using WDBXEditor2.Misc;
+using System.ComponentModel;
+using System.Windows.Data;
 
 namespace WDBXEditor2
 {
@@ -68,7 +70,7 @@ namespace WDBXEditor2
             var openFileDialog = new OpenFileDialog
             {
                 Multiselect = true,
-                Filter = "DB2 Files (*.db2)|*.db2",
+                Filter = "Data Files (*.db2;*.dbc)|*.db2;*.dbc",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
             };
 
@@ -87,7 +89,7 @@ namespace WDBXEditor2
 
                 Locale selectedLocale = definitionSelect.SelectedLocale;
                 string build = definitionSelect.SelectedVersion;
-                txtOperation.Text = "Parsing DB2 files...";
+                txtOperation.Text = "Parsing Data files...";
                 ProgressBar.IsIndeterminate = true;
 
                 Task.Run(() =>
@@ -124,13 +126,16 @@ namespace WDBXEditor2
             {
                 Title = $"WDBXEditor2  -  {Constants.Version}  -  {CurrentOpenDB2}";
                 OpenedDB2Storage = storage;
+                dbLoader.FileExtensions.TryGetValue(CurrentOpenDB2, out string extension);
+
 
                 tbCurrentDb2Stats.Text = $"{storage.Count} rows, {DBCDHelper.GetColumnNames(storage).Length} columns";
-                tbCurrentFile.Text = CurrentOpenDB2 + ".db2";
+                tbCurrentFile.Text = CurrentOpenDB2 + extension;
                 tbCurrentDefinition.Text = storage.LayoutHash.ToString("X8");
                 tbColumnInfo.Text = string.Empty;
                 _copiedRowId = -1;
 
+                Filter = new();
                 ReloadDataView();
             }
         }
@@ -179,7 +184,7 @@ namespace WDBXEditor2
             var saveFileDialog = new SaveFileDialog
             {
                 FileName = CurrentOpenDB2,
-                Filter = "DB2 Files (*.db2)|*.db2",
+                Filter = "DBC Files|*.dbc|DB2 Files|*.db2",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyComputer)
             };
 
@@ -191,6 +196,38 @@ namespace WDBXEditor2
                     FileName = saveFileDialog.FileName
                 });
             }
+        }
+
+        public void DB2DataGrid_Sorting(object sender, System.Windows.Controls.DataGridSortingEventArgs e)
+        {
+            var view = CollectionViewSource.GetDefaultView(DB2DataGrid.ItemsSource);
+            var columnHeader = e.Column.Header.ToString();
+
+            // Clear existing sort if clicking same column third time
+            if (e.Column.SortDirection == ListSortDirection.Descending)
+            {
+                view.SortDescriptions.Clear();
+                e.Column.SortDirection = null;
+                e.Handled = true;
+                return;
+            }
+
+            // First click - ascending (lowest to highest)
+            // Second click - descending (highest to lowest)
+            var direction = e.Column.SortDirection == null
+                ? ListSortDirection.Ascending  // First click
+                : ListSortDirection.Descending;  // Second click
+
+            view.SortDescriptions.Clear();
+            view.SortDescriptions.Add(new SortDescription($"RowData[{columnHeader}]", direction));
+
+            // Update sort direction indicator
+            foreach (var col in DB2DataGrid.Columns)
+            {
+                col.SortDirection = null;
+            }
+            e.Column.SortDirection = direction;
+            e.Handled = true;
         }
 
         private void Exit_Click(object sender, RoutedEventArgs e)
