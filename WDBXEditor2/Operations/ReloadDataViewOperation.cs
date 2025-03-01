@@ -114,7 +114,7 @@ namespace WDBXEditor2.Operations
             switch (_mainWindow.Filter.Type)
             {
                 case Misc.FilterType.Exact: return colVal.Equals(_mainWindow.Filter.Value);
-                case Misc.FilterType.Contains: return colVal.Contains(_mainWindow.Filter.Value);
+                case Misc.FilterType.Contains: return colVal.ToLower().Contains(_mainWindow.Filter.Value.ToLower());
                 case Misc.FilterType.RegEx: return _mainWindow.Filter.AsRegex.IsMatch(colVal);
                 default: return false;
             }
