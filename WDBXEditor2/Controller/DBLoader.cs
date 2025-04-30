@@ -20,12 +20,14 @@ namespace WDBXEditor2.Controller
         public ConcurrentDictionary<string, IDBCDStorage> LoadedDBFiles;
 
         private readonly IDBDProvider _dbdProvider;
+        private readonly IDBDNameProvider _dbdNameProvider;
         private readonly IServiceProvider _serviceProvider;
 
         public DBLoader(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
             _dbdProvider = serviceProvider.GetService<IDBDProvider>();
+            _dbdNameProvider = serviceProvider.GetService<IDBDNameProvider>();
             LoadedDBFiles = new ConcurrentDictionary<string, IDBCDStorage>();
         }
 
@@ -37,6 +39,17 @@ namespace WDBXEditor2.Controller
             foreach (string db2Path in files)
             {
                 string db2Name = GetDb2Name(db2Path);
+
+                if (string.IsNullOrEmpty(db2Name))
+                {
+                    MessageBox.Show(
+                        string.Format("Cant find table definitions for {0}.\nFilename was not recognized as an existing DB2 table. Only files with recognizable table names can be opened at the moment.", db2Path),
+                        "WDBXEditor2",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning
+                    );
+                    continue;
+                }
 
                 try
                 {
@@ -58,15 +71,6 @@ namespace WDBXEditor2.Controller
                     stopWatch.Stop();
                     Console.WriteLine($"Loading File: {db2Name} Elapsed Time: {stopWatch.Elapsed}");
                 }
-                catch (AggregateException)
-                {
-                    MessageBox.Show(
-                        string.Format("Cant find defenitions for {0}.\nCheck your Filename and note upper and lower case", db2Name),
-                        "WDBXEditor2",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning
-                    );
-                }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
@@ -84,7 +88,7 @@ namespace WDBXEditor2.Controller
 
         public string GetDb2Name(string filePath)
         {
-            return Path.GetFileNameWithoutExtension(filePath);
+            return _dbdNameProvider.GetTableNameForFile(Path.GetFileNameWithoutExtension(filePath));
         }
 
         public VersionDefinitions[] GetVersionDefinitionsForDB2(string db2File)
